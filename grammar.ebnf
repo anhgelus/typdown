@@ -1,0 +1,27 @@
+(* general structure *)
+blocks = [ block ], { strong-delimiter, block };
+delimiter = weak-delimiter | strong-delimiter;
+weak-delimiter = "\n";
+strong-delimiter = "\n\n", { "\n" };
+
+(* blocks *)
+block = title | paragraph | quote | callout | code-block | math-block | image | footnotes;
+title = ? #{1,6} ?, content;
+paragraph = content, { weak-delimiter, content };
+quote = ">", content, { weak-delimiter, ">", content }, [ paragraph ];
+callout = ":::", [ ? [a-z]+ ? ], { delimiter, content }, weak-delimiter, ":::";
+code-block = "```", [ ? [a-z]+ ? ], { delimiter, content }, weak-delimiter, "```";
+math-block = "$$$", { delimiter, content }, weak-delimiter, "$$$";
+image = "![", [ content ], "](", content, ")", { weak-delimiter, content };
+list-unordored = "-", paragraph, { weak-delimiter, "-", paragraph };
+list-ordored = ".", paragraph, { weak-delimiter, ".", paragraph };
+footnotes = "<", content, ":", paragraph, { weak-delimiter, "<", content, ":", paragraph };
+
+(* content of a block *)
+content = ? [^\n]+ ? | bold | italic | code-inline | math-inline | link | ref;
+bold = "*", content, "*";
+italic = "_", content, "_";
+code-inline = "`", content, "`";
+math-inline = "$", content, "$";
+link = "[", [ content ], "](", content, ")";
+ref = "<", content, ">";

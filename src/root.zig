@@ -1,4 +1,5 @@
 const std = @import("std");
+const lexer = @import("lexer/lexer.zig");
 
 pub fn bufferedPrint() !void {
     // Stdout is for the actual output of your application, for example if you
@@ -19,4 +20,8 @@ pub fn add(a: i32, b: i32) i32 {
 
 test "basic add functionality" {
     try std.testing.expect(add(3, 7) == 10);
+}
+
+test {
+    std.testing.refAllDeclsRecursive(@This());
 }

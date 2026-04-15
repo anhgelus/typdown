@@ -13,6 +13,8 @@ pub const Kind = enum {
     bold,
     italic,
     ref,
+    list_ordored,
+    list_unordored,
 };
 
 pub const Lexed = struct {

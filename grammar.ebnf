@@ -6,7 +6,7 @@ strong-delimiter = "\n\n", { "\n" };
 
 (* blocks *)
 block = title | paragraph | quote | callout | code-block | math-block | image | footnotes;
-title = ? #{1,6} ?, content;
+title = ? #{1,6} ?, " ", content;
 paragraph = content, { weak-delimiter, content };
 quote = ">", content, { weak-delimiter, ">", content }, [ paragraph ];
 callout = ":::", [ ? [a-z]+ ? ], { delimiter, content }, weak-delimiter, ":::";

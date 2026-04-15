@@ -3,9 +3,6 @@ const Allocator = std.mem.Allocator;
 const unicode = std.unicode;
 const lexed = @import("lexed.zig");
 
-const operators = [_][]const u8{ "*", "_", "`", "<", ">", ":", "!", "[", "]", "(", ")", "$", "-", "." };
-const delimiters = [_][]const u8{"\n"};
-
 pub const Lexer = struct {
     iter: unicode.Utf8Iterator,
     force_lit: bool = false,
@@ -33,14 +30,22 @@ pub const Lexer = struct {
                 self.force_lit = true;
                 current_kind = .literal;
             } else {
-                current_kind = self.getCurrentKind(rune); 
+                current_kind = self.getCurrentKind(rune, acc.items);
                 self.force_lit = false;
                 try acc.appendSlice(alloc, rune);
             }
             // conds here to avoid creating complex condition in while
             const next_rune = self.iter.peek(1);
             if (next_rune.len > 0) {
-                if (self.getCurrentKind(next_rune) != current_kind.?) break;
+                if (self.getCurrentKind(next_rune, acc.items) != current_kind.?) {
+                    if (!requiresSpace(current_kind.?)) break;
+                    if (std.mem.eql(u8, next_rune, " ")) {
+                        // consume next space
+                        _ = self.iter.nextCodepoint();
+                        break;
+                    }
+                    current_kind = .literal;
+                }
             }
         }
         const kind = current_kind orelse {
@@ -50,38 +55,50 @@ pub const Lexer = struct {
         return lexed.Lexed.init(alloc, kind, acc);
     }
 
-    fn getCurrentKind(self: *Self, rune: []const u8) ?lexed.Kind {
+    fn getCurrentKind(self: *Self, rune: []const u8, acc: []const u8) lexed.Kind {
         if (self.force_lit) return .literal;
-        if (isIn(&operators, rune)) {
-            return .operator;
-        } else if (isIn(&delimiters, rune)) {
-            return .delimiter;
-        }
+        if (std.mem.eql(u8, rune, ">")) return .quote;
+        if (std.mem.eql(u8, rune, "\n")) return .delimiter;
+        if (is('#', 6, rune, acc)) return .title;
+        if (is('`', 3, rune, acc)) return .code;
+        if (is('$', 3, rune, acc)) return .math;
         return .literal;
     }
 };
 
-fn isIn(arr: []const []const u8, v: []const u8) bool {
-    for (arr) |it| if (std.mem.eql(u8, it, v)) return true;
-    return false;
+fn is(v: u8, maxLen: usize, rune: []const u8, acc: []const u8) bool {
+    if (acc.len >= maxLen) return false;
+    for (0..acc.len) |i| if (acc[i] != v) return false;
+    return std.mem.eql(u8, rune, &[_]u8{v});
 }
 
-test "literal" {
+fn requiresSpace(k: lexed.Kind) bool {
+    return switch (k) {
+        .title => true,
+        else => false,
+    };
+}
+
+fn doTest(alloc: Allocator, l: *Lexer, k: lexed.Kind, v: []const u8) !void {
+    var first = (try l.next(alloc)).?;
+    defer first.deinit();
+    std.testing.expect(first.equals(k, v)) catch |err| {
+        std.debug.print("{}({s})\n", .{ first.kind, first.content.items });
+        return err;
+    };
+}
+
+test "lexer common" {
     const expect = std.testing.expect;
 
-    var arena = std.heap.DebugAllocator(.{}){};
+    var arena = std.heap.DebugAllocator(.{}).init;
     defer _ = arena.deinit();
     const alloc = arena.allocator();
 
-    var l = try Lexer.init("hello world :)");
+    var l = try Lexer.init("# hello world :)");
 
-    var first = (try l.next(alloc)).?;
-    defer first.deinit();
-    try expect(first.equals(.literal, "hello world "));
-
-    var second = (try l.next(alloc)).?;
-    defer second.deinit();
-    try expect(second.equals(.operator, ":)"));
+    try doTest(alloc, &l, .title, "#");
+    try doTest(alloc, &l, .literal, "hello world :)");
 
     try expect(try l.next(alloc) == null);
 }

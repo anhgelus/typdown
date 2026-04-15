@@ -4,17 +4,15 @@ const Allocator = std.mem.Allocator;
 pub const Kind = enum {
     literal,
     delimiter,
-    operator,
-
-    const Self = @This();
-
-    pub fn string(self: *Self) []const u8 {
-        switch (*self) {
-            .literal => return "literal",
-            .delimiter => return "delimiter",
-            .operator => return "operator",
-        }
-    }
+    title,
+    quote,
+    code,
+    math,
+    image,
+    link,
+    bold,
+    italic,
+    ref,
 };
 
 pub const Lexed = struct {

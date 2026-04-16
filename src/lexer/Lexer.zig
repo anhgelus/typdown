@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const eql = std.mem.eql;
 const unicode = std.unicode;
-const Lexed = @import("lexed.zig");
+const Lexed = @import("Lexed.zig");
 
 iter: unicode.Utf8Iterator,
 force_lit: bool = false,
@@ -60,7 +60,7 @@ pub fn next(self: *Self, alloc: Allocator) Error!?Lexed {
         acc.deinit(alloc);
         return null;
     };
-    return Lexed.init(alloc, kind, acc);
+    return .init(alloc, kind, acc);
 }
 
 const kindRes = struct {

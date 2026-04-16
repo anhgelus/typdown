@@ -87,8 +87,8 @@ pub const Lexer = struct {
         if (is('#', 6, rune, acc)) return .{ .kind = .title };
         if (isIn(links, rune, acc, before, .link)) return .{ .kind = .link };
         if (isOneOrThree(":", rune, acc, .ref, .callout)) |it| return it;
-        if (isOneOrThree("$", rune, acc, .math, .math)) |it| return it;
-        if (isOneOrThree("`", rune, acc, .code, .code)) |it| return it;
+        if (isOneOrThree("$", rune, acc, .math, .math_block)) |it| return it;
+        if (isOneOrThree("`", rune, acc, .code, .code_block)) |it| return it;
         return .{ .kind = .literal };
     }
 };

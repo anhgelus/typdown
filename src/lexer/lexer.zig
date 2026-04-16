@@ -76,8 +76,12 @@ pub const Lexer = struct {
 
     fn getCurrentKind(self: *Self, before: ?lexed.Kind, rune: []const u8, acc: []const u8) kindRes {
         if (self.force_lit) return .{ .kind = .literal };
-        if (eql(u8, rune, ">")) return .{ .kind = .quote };
         if (eql(u8, rune, "\n")) return .{ .kind = .delimiter };
+        if (eql(u8, rune, "*")) return .{ .kind = .bold };
+        if (eql(u8, rune, "_")) return .{ .kind = .italic };
+        if (eql(u8, rune, ">")) return .{ .kind = .quote };
+        if (eql(u8, rune, "-")) return .{ .kind = .list_unordored };
+        if (eql(u8, rune, ".")) return .{ .kind = .list_ordored };
         if (eql(u8, rune, "!")) return .{ .kind = .image };
         if (eql(u8, rune, "<")) return .{ .kind = .ref };
         if (is('#', 6, rune, acc)) return .{ .kind = .title };
@@ -96,7 +100,6 @@ fn is(v: u8, maxLen: usize, rune: []const u8, acc: []const u8) bool {
 }
 
 const links = &[_][]const u8{ "[", "](", ")" };
-const refs = &[_][]const u8{"<"};
 
 fn isIn(ops: []const []const u8, rune: []const u8, p: []const u8, before: ?lexed.Kind, now: lexed.Kind) bool {
     var acc = p;

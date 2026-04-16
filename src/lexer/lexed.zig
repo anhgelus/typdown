@@ -18,6 +18,7 @@ pub const Kind = enum {
     callout,
     list_ordored,
     list_unordored,
+    tag,
 };
 
 pub const Lexed = struct {

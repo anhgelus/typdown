@@ -25,3 +25,4 @@ code-inline = "`", content, "`";
 math-inline = "$", content, "$";
 link = "[", [ content ], "](", content, ")";
 ref = "<", content, ">";
+tag = "#", ? [^\n ]+ ?;

@@ -50,7 +50,10 @@ pub const Lexer = struct {
                         _ = self.iter.nextCodepoint();
                         break;
                     }
-                    current_kind = .literal;
+                    current_kind = switch (current_kind.?) {
+                        .title => if (acc.items.len == 1) .tag else .literal,
+                        else => .literal,
+                    };
                 }
             }
         }

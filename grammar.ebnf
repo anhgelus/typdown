@@ -13,8 +13,8 @@ callout = ":::", [ ? [a-z]+ ? ], { delimiter, content }, weak-delimiter, ":::";
 code-block = "```", [ ? [a-z]+ ? ], { delimiter, content }, weak-delimiter, "```";
 math-block = "$$$", { delimiter, content }, weak-delimiter, "$$$";
 image = "![", [ content ], "](", content, ")", { weak-delimiter, content };
-list-unordored = "-", paragraph, { weak-delimiter, "-", paragraph };
-list-ordored = ".", paragraph, { weak-delimiter, ".", paragraph };
+list-unordored = "- ", paragraph, { weak-delimiter, "- ", paragraph };
+list-ordored = ". ", paragraph, { weak-delimiter, ". ", paragraph };
 footnotes = "<", content, ":", paragraph, { weak-delimiter, "<", content, ":", paragraph };
 
 (* content of a block *)

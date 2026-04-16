@@ -13,6 +13,7 @@ pub const Kind = enum {
     bold,
     italic,
     ref,
+    callout,
     list_ordored,
     list_unordored,
 };

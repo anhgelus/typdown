@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const eql = std.mem.eql;
 const unicode = std.unicode;
 const lexed = @import("lexed.zig");
 
@@ -24,22 +25,25 @@ pub const Lexer = struct {
 
         var current_kind: ?lexed.Kind = null;
         while (self.iter.nextCodepointSlice()) |rune| {
-            if (std.mem.eql(u8, rune, "\r")) continue;
+            if (eql(u8, rune, "\r")) continue;
             // escape chars
-            if (std.mem.eql(u8, rune, "\\")) {
+            if (eql(u8, rune, "\\")) {
                 self.force_lit = true;
                 current_kind = .literal;
             } else {
-                current_kind = self.getCurrentKind(current_kind, rune, acc.items);
                 self.force_lit = false;
+                current_kind = self.getCurrentKind(current_kind, rune, acc.items).kind;
                 try acc.appendSlice(alloc, rune);
             }
             // conds here to avoid creating complex condition in while
             const next_rune = self.iter.peek(1);
             if (next_rune.len > 0) {
-                if (self.getCurrentKind(current_kind, next_rune, acc.items) != current_kind.?) {
+                const next_kind = self.getCurrentKind(current_kind, next_rune, acc.items);
+                if (next_kind.kind != current_kind.? and
+                    (next_kind.dont_break_if == null or next_kind.dont_break_if != current_kind.?))
+                {
                     if (!requiresSpace(current_kind.?)) break;
-                    if (std.mem.eql(u8, next_rune, " ")) {
+                    if (eql(u8, next_rune, " ")) {
                         // consume next space
                         _ = self.iter.nextCodepoint();
                         break;
@@ -55,26 +59,33 @@ pub const Lexer = struct {
         return lexed.Lexed.init(alloc, kind, acc);
     }
 
-    fn getCurrentKind(self: *Self, before: ?lexed.Kind, rune: []const u8, acc: []const u8) lexed.Kind {
-        if (self.force_lit) return .literal;
-        if (std.mem.eql(u8, rune, ">")) return .quote;
-        if (std.mem.eql(u8, rune, "\n")) return .delimiter;
-        if (std.mem.eql(u8, rune, "!")) return .image;
-        if (is('#', 6, rune, acc)) return .title;
-        if (is('`', 3, rune, acc)) return .code;
-        if (is('$', 3, rune, acc)) return .math;
-        if (isIn(links, before, .link, rune, acc)) return .link;
-        return .literal;
+    const kindRes = struct {
+        kind: lexed.Kind,
+        dont_break_if: ?lexed.Kind = null,
+    };
+
+    fn getCurrentKind(self: *Self, before: ?lexed.Kind, rune: []const u8, acc: []const u8) kindRes {
+        if (self.force_lit) return .{ .kind = .literal };
+        if (eql(u8, rune, ">")) return .{ .kind = .quote };
+        if (eql(u8, rune, "\n")) return .{ .kind = .delimiter };
+        if (eql(u8, rune, "!")) return .{ .kind = .image };
+        if (is('#', 6, rune, acc)) return .{ .kind = .title };
+        if (is('`', 3, rune, acc)) return .{ .kind = .code };
+        if (is('$', 3, rune, acc)) return .{ .kind = .math };
+        if (isIn(links, before, .link, rune, acc)) return .{ .kind = .link };
+        if (isIn(refs, before, .ref, rune, acc)) return .{ .kind = .ref };
+        return .{ .kind = .literal };
     }
 };
 
 fn is(v: u8, maxLen: usize, rune: []const u8, acc: []const u8) bool {
     if (acc.len >= maxLen) return false;
     for (0..acc.len) |i| if (acc[i] != v) return false;
-    return std.mem.eql(u8, rune, &[_]u8{v});
+    return eql(u8, rune, &[_]u8{v});
 }
 
 const links = &[_][]const u8{ "[", "](", ")" };
+const refs = &[_][]const u8{ "<", ":" };
 
 fn isIn(ops: []const []const u8, before: ?lexed.Kind, now: lexed.Kind, rune: []const u8, p: []const u8) bool {
     var acc = p;
@@ -83,7 +94,9 @@ fn isIn(ops: []const []const u8, before: ?lexed.Kind, now: lexed.Kind, rune: []c
     }
     for (ops) |op| {
         const ln = acc.len + rune.len;
-        if (op.len >= ln and std.mem.eql(u8, acc, op[0..acc.len]) and std.mem.eql(u8, rune, op[acc.len..ln]))
+        if (op.len >= ln and
+            (acc.len == 0 or eql(u8, acc, op[0..acc.len])) and
+            eql(u8, rune, op[acc.len..ln]))
             return true;
     }
     return false;
@@ -92,6 +105,8 @@ fn isIn(ops: []const []const u8, before: ?lexed.Kind, now: lexed.Kind, rune: []c
 fn requiresSpace(k: lexed.Kind) bool {
     return switch (k) {
         .title => true,
+        .list_ordored => true,
+        .list_unordored => true,
         else => false,
     };
 }
@@ -115,7 +130,8 @@ test "lexer common" {
     var l = try Lexer.init("# hello world :)");
 
     try doTest(alloc, &l, .title, "#");
-    try doTest(alloc, &l, .literal, "hello world :");
+    try doTest(alloc, &l, .literal, "hello world ");
+    try doTest(alloc, &l, .ref, ":");
     try doTest(alloc, &l, .link, ")");
 
     try expect(try l.next(alloc) == null);

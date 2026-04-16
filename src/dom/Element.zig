@@ -48,7 +48,7 @@ pub fn deinit(self: *Self) void {
     self.content.deinit(self.alloc);
 }
 
-pub fn render(self: *const Self, alloc: Allocator) !std.ArrayList(u8) {
+pub fn render(self: *Self, alloc: Allocator) !std.ArrayList(u8) {
     var attr = try self.renderAttribute(alloc);
     defer attr.deinit(alloc);
     var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
@@ -63,7 +63,8 @@ pub fn render(self: *const Self, alloc: Allocator) !std.ArrayList(u8) {
         .void => return acc,
         .content => {
             for (self.content.items) |it| {
-                var sub = try it.render(alloc);
+                var v = it;
+                var sub = try v.render(alloc);
                 defer sub.deinit(alloc);
                 try acc.appendSlice(alloc, sub.items);
             }
@@ -78,7 +79,10 @@ pub fn render(self: *const Self, alloc: Allocator) !std.ArrayList(u8) {
     return acc;
 }
 
-fn renderAttribute(self: *const Self, alloc: Allocator) !std.ArrayList(u8) {
+fn renderAttribute(self: *Self, alloc: Allocator) !std.ArrayList(u8) {
+    var class = try self.renderClass(alloc);
+    defer class.deinit(alloc);
+    if (class.items.len > 0) try self.setAttribute("class", class.items);
     var iter = self.attributes.iterator();
     if (iter.len == 0) return .empty;
     var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
@@ -92,6 +96,19 @@ fn renderAttribute(self: *const Self, alloc: Allocator) !std.ArrayList(u8) {
         try acc.appendSlice(alloc, it.value_ptr.*);
         try acc.append(alloc, '"');
         if (i < iter.len - 1) try acc.append(alloc, ' ');
+    }
+    return acc;
+}
+
+fn renderClass(self: *const Self, alloc: Allocator) !std.ArrayList(u8) {
+    var iter = self.class_list.iterator();
+    if (iter.len == 0) return .empty;
+    var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
+    errdefer acc.deinit(alloc);
+    var i: usize = 0;
+    while (iter.next()) |it| : (i += 1) {
+        try acc.appendSlice(alloc, it.*);
+        if (i < self.class_list.count() - 1) try acc.append(alloc, ' ');
     }
     return acc;
 }
@@ -178,12 +195,14 @@ test "content element" {
 
     var p_managed = try initParagraph(alloc, "hello world");
     defer p_managed.deinit();
+
     try doTest(alloc, &p_managed, "<p>hello world</p>");
 
     var div = init(alloc, .content, "div");
     defer div.deinit();
-    try div.setAttribute("class", "foo-bar");
+    try div.class_list.insert("foo-bar");
     try div.appendContent(try initParagraph(alloc, "hello world"));
     try div.appendContent(try initImg(alloc, "example.org", "example"));
+
     try doTest(alloc, &div, "<div class=\"foo-bar\"><p>hello world</p><img src=\"example.org\" alt=\"example\"></div>");
 }

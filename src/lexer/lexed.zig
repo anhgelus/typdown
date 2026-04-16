@@ -21,31 +21,29 @@ pub const Kind = enum {
     tag,
 };
 
-pub const Lexed = struct {
-    allocator: Allocator,
-    kind: Kind,
-    content: std.ArrayList(u8),
+allocator: Allocator,
+kind: Kind,
+content: std.ArrayList(u8),
 
-    const Self = @This();
+const Self = @This();
 
-    pub fn init(alloc: Allocator, kind: Kind, content: std.ArrayList(u8)) Lexed {
-        return Lexed{
-            .allocator = alloc,
-            .kind = kind,
-            .content = content,
-        };
-    }
+pub fn init(alloc: Allocator, kind: Kind, content: std.ArrayList(u8)) Self {
+    return .{
+        .allocator = alloc,
+        .kind = kind,
+        .content = content,
+    };
+}
 
-    pub fn deinit(self: *Self) void {
-        self.content.deinit(self.allocator);
-    }
+pub fn deinit(self: *Self) void {
+    self.content.deinit(self.allocator);
+}
 
-    pub fn clone(self: *const Self, alloc: Allocator) Allocator.Error!std.ArrayList(u8) {
-        return self.content.clone(alloc);
-    }
+pub fn clone(self: *const Self, alloc: Allocator) Allocator.Error!std.ArrayList(u8) {
+    return self.content.clone(alloc);
+}
 
-    pub fn equals(self: *const Self, kind: Kind, content: []const u8) bool {
-        if (self.kind != kind) return false;
-        return std.mem.eql(u8, self.content.items, content);
-    }
-};
+pub fn equals(self: *const Self, kind: Kind, content: []const u8) bool {
+    if (self.kind != kind) return false;
+    return std.mem.eql(u8, self.content.items, content);
+}

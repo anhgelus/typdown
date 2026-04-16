@@ -26,21 +26,23 @@ pub const Lexer = struct {
         var current_kind: ?lexed.Kind = null;
         while (self.iter.nextCodepointSlice()) |rune| {
             if (eql(u8, rune, "\r")) continue;
+            var override_if: ?[]const u8 = null;
             // escape chars
             if (eql(u8, rune, "\\")) {
                 self.force_lit = true;
                 current_kind = .literal;
             } else {
                 self.force_lit = false;
-                current_kind = self.getCurrentKind(current_kind, rune, acc.items).kind;
+                const res = self.getCurrentKind(current_kind, rune, acc.items);
+                current_kind = res.kind;
+                override_if = res.override_if;
                 try acc.appendSlice(alloc, rune);
             }
             // conds here to avoid creating complex condition in while
             const next_rune = self.iter.peek(1);
             if (next_rune.len > 0) {
-                const next_kind = self.getCurrentKind(current_kind, next_rune, acc.items);
-                if (next_kind.kind != current_kind.? and
-                    (next_kind.dont_break_if == null or next_kind.dont_break_if != current_kind.?))
+                if (self.getCurrentKind(current_kind, next_rune, acc.items).kind != current_kind.? and
+                    (override_if == null or !eql(u8, override_if.?, next_rune)))
                 {
                     if (!requiresSpace(current_kind.?)) break;
                     if (eql(u8, next_rune, " ")) {
@@ -61,7 +63,15 @@ pub const Lexer = struct {
 
     const kindRes = struct {
         kind: lexed.Kind,
-        dont_break_if: ?lexed.Kind = null,
+        override_if: ?[]const u8 = null,
+
+        fn equals(self: @This(), v: @This()) bool {
+            if (self.kind != v.kind) return false;
+            if (self.override_if == null and v.override_if != null) return false;
+            if (self.override_if != null and v.override_if == null) return false;
+            if (self.override_if) |it| return eql(u8, it, v.override_if.?);
+            return true;
+        }
     };
 
     fn getCurrentKind(self: *Self, before: ?lexed.Kind, rune: []const u8, acc: []const u8) kindRes {
@@ -69,11 +79,12 @@ pub const Lexer = struct {
         if (eql(u8, rune, ">")) return .{ .kind = .quote };
         if (eql(u8, rune, "\n")) return .{ .kind = .delimiter };
         if (eql(u8, rune, "!")) return .{ .kind = .image };
+        if (eql(u8, rune, "<")) return .{ .kind = .ref };
         if (is('#', 6, rune, acc)) return .{ .kind = .title };
-        if (is('`', 3, rune, acc)) return .{ .kind = .code };
-        if (is('$', 3, rune, acc)) return .{ .kind = .math };
-        if (isIn(links, before, .link, rune, acc)) return .{ .kind = .link };
-        if (isIn(refs, before, .ref, rune, acc)) return .{ .kind = .ref };
+        if (isIn(links, rune, acc, before, .link)) return .{ .kind = .link };
+        if (isOneOrThree(":", rune, acc, .ref, .callout)) |it| return it;
+        if (isOneOrThree("$", rune, acc, .math, .math)) |it| return it;
+        if (isOneOrThree("`", rune, acc, .code, .code)) |it| return it;
         return .{ .kind = .literal };
     }
 };
@@ -85,21 +96,44 @@ fn is(v: u8, maxLen: usize, rune: []const u8, acc: []const u8) bool {
 }
 
 const links = &[_][]const u8{ "[", "](", ")" };
-const refs = &[_][]const u8{ "<", ":" };
+const refs = &[_][]const u8{"<"};
 
-fn isIn(ops: []const []const u8, before: ?lexed.Kind, now: lexed.Kind, rune: []const u8, p: []const u8) bool {
+fn isIn(ops: []const []const u8, rune: []const u8, p: []const u8, before: ?lexed.Kind, now: lexed.Kind) bool {
     var acc = p;
     if (before) |b| {
         if (now != b) acc = &[_]u8{};
     }
     for (ops) |op| {
         const ln = acc.len + rune.len;
-        if (op.len >= ln and
-            (acc.len == 0 or eql(u8, acc, op[0..acc.len])) and
-            eql(u8, rune, op[acc.len..ln]))
+        if (op.len >= ln and eql(u8, acc, op[0..acc.len]) and eql(u8, rune, op[acc.len..ln]))
             return true;
     }
     return false;
+}
+
+fn isOneOrThree(op: []const u8, rune: []const u8, p: []const u8, one: lexed.Kind, three: lexed.Kind) ?Lexer.kindRes {
+    if (!eql(u8, rune, op)) return null;
+    var acc = p;
+    if (acc.len < op.len or !eql(u8, acc[0..op.len], op)) acc = &[_]u8{};
+
+    var iter = (unicode.Utf8View.init(acc) catch unreachable).iterator();
+    var ln: usize = 1; // number of runes
+    while (iter.nextCodepointSlice()) |it| : (ln += 1) {
+        if (!eql(u8, it, op)) return null;
+    }
+
+    return switch (ln) {
+        1 => .{
+            .kind = one,
+            .override_if = op,
+        },
+        2 => .{
+            .kind = .literal,
+            .override_if = op,
+        },
+        3 => .{ .kind = three },
+        else => unreachable,
+    };
 }
 
 fn requiresSpace(k: lexed.Kind) bool {
@@ -118,6 +152,21 @@ fn doTest(alloc: Allocator, l: *Lexer, k: lexed.Kind, v: []const u8) !void {
         std.debug.print("{}({s})\n", .{ first.kind, first.content.items });
         return err;
     };
+}
+
+test "one or three" {
+    const expect = std.testing.expect;
+
+    // valid
+    try expect(isOneOrThree(":", ":", "", .ref, .callout).?.equals(.{ .kind = .ref, .override_if = ":" }));
+    try expect(isOneOrThree(":", ":", ":", .ref, .callout).?.equals(.{ .kind = .literal, .override_if = ":" }));
+    try expect(isOneOrThree(":", ":", "::", .ref, .callout).?.equals(.{ .kind = .callout }));
+    try expect(isOneOrThree(":", ":", "a", .ref, .callout).?.equals(.{ .kind = .ref, .override_if = ":" }));
+
+    // invalid
+    try expect(isOneOrThree(":", "a", "", .ref, .callout) == null);
+    try expect(isOneOrThree(":", "a", "b", .ref, .callout) == null);
+    try expect(isOneOrThree(":", "a", ":", .ref, .callout) == null);
 }
 
 test "lexer common" {

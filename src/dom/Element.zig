@@ -64,7 +64,7 @@ pub fn deinit(self: *Self) void {
 pub fn render(self: *Self, alloc: Allocator) ![]const u8 {
     const attr = try self.renderAttribute(alloc);
     defer if (attr) |it| alloc.free(it);
-    var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
+    var acc = try std.ArrayList(u8).initCapacity(alloc, self.content.items.len + if (self.literal) |it| it.len else 0);
     errdefer acc.deinit(alloc);
     if (self.tag) |tag| {
         try acc.append(alloc, '<');
@@ -98,7 +98,7 @@ fn renderAttribute(self: *Self, alloc: Allocator) !?[]const u8 {
     if (class) |it| try self.setAttribute("class", it);
     var iter = self.attributes.iterator();
     if (iter.len == 0) return null;
-    var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
+    var acc = try std.ArrayList(u8).initCapacity(alloc, iter.len);
     errdefer acc.deinit(alloc);
     try acc.append(alloc, ' ');
     var i: usize = 0;
@@ -118,7 +118,7 @@ fn renderClass(self: *const Self, alloc: Allocator) !?[]const u8 {
     var iter = self.class_list.iterator();
     if (iter.len == 0) return null;
     const n = self.class_list.count();
-    var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
+    var acc = try std.ArrayList(u8).initCapacity(alloc, n);
     errdefer acc.deinit(alloc);
     var i: usize = 0;
     while (iter.next()) |it| : (i += 1) {
@@ -172,7 +172,7 @@ pub fn initContent(alloc: Allocator, tag: []const u8, content: []Self) !Self {
 /// Init a paragraph tag with an automatically escaped content.
 pub fn initParagraph(alloc: Allocator, content: []const u8) !Self {
     var el = init(alloc, .content, "p");
-    try el.appendContent(initLitEscaped(alloc, content));
+    try el.appendContent(try initLitEscaped(alloc, content));
     return el;
 }
 

@@ -24,9 +24,9 @@ pub fn escape(gpa: std.mem.Allocator, v: []const u8) ![]const u8 {
     return acc.toOwnedSlice(gpa);
 }
 
-fn doTest(alloc: std.mem.Allocator, el: []const u8, exp: []const u8) !void {
-    const got = try escape(alloc, el);
-    defer alloc.free(got);
+fn doTest(gpa: std.mem.Allocator, el: []const u8, exp: []const u8) !void {
+    const got = try escape(gpa, el);
+    defer gpa.free(got);
     std.testing.expect(eql(u8, got, exp)) catch |err| {
         std.debug.print("{s}\n", .{got});
         return err;
@@ -36,12 +36,12 @@ fn doTest(alloc: std.mem.Allocator, el: []const u8, exp: []const u8) !void {
 test "escaping html" {
     var arena = std.heap.DebugAllocator(.{}).init;
     defer _ = arena.deinit();
-    const alloc = arena.allocator();
+    const gpa = arena.allocator();
 
-    try doTest(alloc, "hello world", "hello world");
-    try doTest(alloc, "hello&world", "hello&amp;world");
-    try doTest(alloc, "hello'world", "hello&#39;world");
-    try doTest(alloc, "hello<world", "hello&lt;world");
-    try doTest(alloc, "hello>world", "hello&gt;world");
-    try doTest(alloc, "hello\"world", "hello&#34;world");
+    try doTest(gpa, "hello world", "hello world");
+    try doTest(gpa, "hello&world", "hello&amp;world");
+    try doTest(gpa, "hello'world", "hello&#39;world");
+    try doTest(gpa, "hello<world", "hello&lt;world");
+    try doTest(gpa, "hello>world", "hello&gt;world");
+    try doTest(gpa, "hello\"world", "hello&#34;world");
 }

@@ -19,6 +19,8 @@ class_list: std.BufSet,
 content: std.ArrayList(Self) = .empty,
 literal: ?[]const u8 = null,
 
+/// Init a new Element with the given kind.
+/// The tag will never be escaped.
 pub fn init(alloc: Allocator, knd: Kind, tag: []const u8) Self {
     return .{
         .kind = knd,
@@ -29,6 +31,9 @@ pub fn init(alloc: Allocator, knd: Kind, tag: []const u8) Self {
     };
 }
 
+/// Init a new literal element.
+/// The literal content will never be escaped, see initLitEscaped if you want to escape it.
+/// The literal content must be free'd by the allocator (use Allocator.dupe if you want to use a const string).
 pub fn initLit(alloc: Allocator, literal: []const u8) Self {
     return .{
         .kind = .literal,
@@ -39,6 +44,12 @@ pub fn initLit(alloc: Allocator, literal: []const u8) Self {
     };
 }
 
+/// Init a new literal element that is escaped.
+/// The literal content will be escaped, see initLit if you don't want this behavior.
+pub fn initLitEscaped(alloc: Allocator, literal: []const u8) !Self {
+    return .initLit(alloc, try html.escape(alloc, literal));
+}
+
 pub fn deinit(self: *Self) void {
     self.attributes.deinit();
     self.class_list.deinit();
@@ -47,6 +58,7 @@ pub fn deinit(self: *Self) void {
         v.deinit();
     }
     self.content.deinit(self.alloc);
+    if (self.literal) |it| self.alloc.free(it);
 }
 
 pub fn render(self: *Self, alloc: Allocator) ![]const u8 {
@@ -105,9 +117,9 @@ fn renderAttribute(self: *Self, alloc: Allocator) !?[]const u8 {
 fn renderClass(self: *const Self, alloc: Allocator) !?[]const u8 {
     var iter = self.class_list.iterator();
     if (iter.len == 0) return null;
+    const n = self.class_list.count();
     var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
     errdefer acc.deinit(alloc);
-    const n = self.class_list.count();
     var i: usize = 0;
     while (iter.next()) |it| : (i += 1) {
         try acc.appendSlice(alloc, it.*);
@@ -157,9 +169,10 @@ pub fn initContent(alloc: Allocator, tag: []const u8, content: []Self) !Self {
     return el;
 }
 
+/// Init a paragraph tag with an automatically escaped content.
 pub fn initParagraph(alloc: Allocator, content: []const u8) !Self {
     var el = init(alloc, .content, "p");
-    try el.appendContent(initLit(alloc, content));
+    try el.appendContent(initLitEscaped(alloc, content));
     return el;
 }
 
@@ -202,7 +215,7 @@ test "content element" {
     var p = init(alloc, .content, "p");
     defer p.deinit();
 
-    var content = initLit(alloc, "hello world");
+    var content = initLit(alloc, try alloc.dupe(u8, "hello world"));
     try p.appendContent(content);
 
     try doTest(alloc, &content, "hello world");

@@ -105,10 +105,11 @@ fn renderClass(self: *const Self, alloc: Allocator) !std.ArrayList(u8) {
     if (iter.len == 0) return .empty;
     var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
     errdefer acc.deinit(alloc);
+    const n = self.class_list.count();
     var i: usize = 0;
     while (iter.next()) |it| : (i += 1) {
         try acc.appendSlice(alloc, it.*);
-        if (i < self.class_list.count() - 1) try acc.append(alloc, ' ');
+        if (i < n - 1) try acc.append(alloc, ' ');
     }
     return acc;
 }
@@ -123,6 +124,18 @@ pub fn removeAttribute(self: *Self, k: []const u8) void {
 
 pub fn hasAttribute(self: *Self, k: []const u8) bool {
     return self.attributes.contains(k);
+}
+
+pub fn appendClass(self: *Self, v: []const u8) !void {
+    try self.class_list.insert(v);
+}
+
+pub fn hasClass(self: *Self, v: []const u8) bool {
+    return self.class_list.contains(v);
+}
+
+pub fn removeClass(self: *Self, v: []const u8) void {
+    self.class_list.remove(v);
 }
 
 pub fn appendContent(self: *Self, content: Self) !void {
@@ -200,7 +213,7 @@ test "content element" {
 
     var div = init(alloc, .content, "div");
     defer div.deinit();
-    try div.class_list.insert("foo-bar");
+    try div.appendClass("foo-bar");
     try div.appendContent(try initParagraph(alloc, "hello world"));
     try div.appendContent(try initImg(alloc, "example.org", "example"));
 

@@ -49,25 +49,25 @@ pub fn deinit(self: *Self) void {
     self.content.deinit(self.alloc);
 }
 
-pub fn render(self: *Self, alloc: Allocator) !std.ArrayList(u8) {
-    var attr = try self.renderAttribute(alloc);
-    defer attr.deinit(alloc);
+pub fn render(self: *Self, alloc: Allocator) ![]const u8 {
+    const attr = try self.renderAttribute(alloc);
+    defer if (attr) |it| alloc.free(it);
     var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
     errdefer acc.deinit(alloc);
     if (self.tag) |tag| {
         try acc.append(alloc, '<');
         try acc.appendSlice(alloc, tag);
-        try acc.appendSlice(alloc, attr.items);
+        if (attr) |it| try acc.appendSlice(alloc, it);
         try acc.append(alloc, '>');
     }
     switch (self.kind) {
-        .void => return acc,
+        .void => return acc.toOwnedSlice(alloc),
         .content => {
             for (self.content.items) |it| {
                 var v = it;
-                var sub = try v.render(alloc);
-                defer sub.deinit(alloc);
-                try acc.appendSlice(alloc, sub.items);
+                const sub = try v.render(alloc);
+                defer alloc.free(sub);
+                try acc.appendSlice(alloc, sub);
             }
         },
         .literal => try acc.appendSlice(alloc, self.literal.?),
@@ -77,15 +77,15 @@ pub fn render(self: *Self, alloc: Allocator) !std.ArrayList(u8) {
         try acc.appendSlice(alloc, tag);
         try acc.append(alloc, '>');
     }
-    return acc;
+    return acc.toOwnedSlice(alloc);
 }
 
-fn renderAttribute(self: *Self, alloc: Allocator) !std.ArrayList(u8) {
-    var class = try self.renderClass(alloc);
-    defer class.deinit(alloc);
-    if (class.items.len > 0) try self.setAttribute("class", class.items);
+fn renderAttribute(self: *Self, alloc: Allocator) !?[]const u8 {
+    const class = try self.renderClass(alloc);
+    defer if (class) |it| alloc.free(it);
+    if (class) |it| try self.setAttribute("class", it);
     var iter = self.attributes.iterator();
-    if (iter.len == 0) return .empty;
+    if (iter.len == 0) return null;
     var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
     errdefer acc.deinit(alloc);
     try acc.append(alloc, ' ');
@@ -99,12 +99,12 @@ fn renderAttribute(self: *Self, alloc: Allocator) !std.ArrayList(u8) {
         try acc.append(alloc, '"');
         if (i < iter.len - 1) try acc.append(alloc, ' ');
     }
-    return acc;
+    return try acc.toOwnedSlice(alloc);
 }
 
-fn renderClass(self: *const Self, alloc: Allocator) !std.ArrayList(u8) {
+fn renderClass(self: *const Self, alloc: Allocator) !?[]const u8 {
     var iter = self.class_list.iterator();
-    if (iter.len == 0) return .empty;
+    if (iter.len == 0) return null;
     var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
     errdefer acc.deinit(alloc);
     const n = self.class_list.count();
@@ -113,7 +113,7 @@ fn renderClass(self: *const Self, alloc: Allocator) !std.ArrayList(u8) {
         try acc.appendSlice(alloc, it.*);
         if (i < n - 1) try acc.append(alloc, ' ');
     }
-    return acc;
+    return try acc.toOwnedSlice(alloc);
 }
 
 pub fn setAttribute(self: *Self, k: []const u8, v: []const u8) !void {
@@ -164,10 +164,10 @@ pub fn initParagraph(alloc: Allocator, content: []const u8) !Self {
 }
 
 fn doTest(alloc: Allocator, el: *Self, exp: []const u8) !void {
-    var rendered = try el.render(alloc);
-    defer rendered.deinit(alloc);
-    std.testing.expect(eql(u8, rendered.items, exp)) catch |err| {
-        std.debug.print("{s}\n", .{rendered.items});
+    const got = try el.render(alloc);
+    defer alloc.free(got);
+    std.testing.expect(eql(u8, got, exp)) catch |err| {
+        std.debug.print("{s}\n", .{got});
         return err;
     };
 }

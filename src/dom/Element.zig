@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const eql = std.mem.eql;
+const html = @import("html.zig");
 
 pub const Kind = enum {
     void,
@@ -92,8 +93,9 @@ fn renderAttribute(self: *Self, alloc: Allocator) !std.ArrayList(u8) {
     while (iter.next()) |it| : (i += 1) {
         try acc.appendSlice(alloc, it.key_ptr.*);
         try acc.appendSlice(alloc, "=\"");
-        // MISSING ESCAPING!!!
-        try acc.appendSlice(alloc, it.value_ptr.*);
+        const escape = try html.escape(alloc, it.value_ptr.*);
+        defer alloc.free(escape);
+        try acc.appendSlice(alloc, escape);
         try acc.append(alloc, '"');
         if (i < iter.len - 1) try acc.append(alloc, ' ');
     }

@@ -1,12 +1,13 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const Lexed = @import("lexer/Lexed.zig");
 const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
-const Allocator = std.mem.Allocator;
-const ast = @import("ast.zig");
-const Error = ast.Error;
+const parser = @import("parser.zig");
 
-pub fn parseParagraph(alloc: Allocator, l: *Lexer) Error!Element {
+pub const Error = error{UnclosedModifier} || Lexer.Error;
+
+pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Element.init(alloc, .content, "p");
     while (l.nextKind()) |kind| {
         switch (kind) {
@@ -38,7 +39,7 @@ pub fn parseContent(alloc: Allocator, l: *Lexer) Error!Element {
         .bold => try content.appendContent(try parseModifier(alloc, l, .bold, "b")),
         .italic => try content.appendContent(try parseModifier(alloc, l, .italic, "em")),
         .code => try content.appendContent(try parseModifier(alloc, l, .code, "code")),
-        else => return Error.InvalidSequence,
+        else => unreachable,
     }
     return content;
 }

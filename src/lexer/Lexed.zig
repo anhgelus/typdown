@@ -23,8 +23,7 @@ pub const Kind = enum {
 
     pub fn isDelimiter(self: @This()) bool {
         return switch (self) {
-            .weak_delimiter => true,
-            .strong_delimiter => true,
+            .weak_delimiter, .strong_delimiter => true,
             else => false,
         };
     }

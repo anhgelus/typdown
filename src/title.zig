@@ -1,0 +1,23 @@
+const std = @import("std");
+const Allocator = std.mem.Allocator;
+const Lexed = @import("lexer/Lexed.zig");
+const Lexer = @import("lexer/Lexer.zig");
+const Element = @import("dom/Element.zig");
+const paragraph = @import("paragraph.zig");
+
+pub const Error = paragraph.Error || Lexer.Error;
+
+pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
+    const v = (try l.next(alloc)).?;
+    var el = try Element.init(alloc, .content, switch (v.content.items.len) {
+        1 => "h1",
+        2 => "h2",
+        3 => "h3",
+        4 => "h4",
+        5 => "h5",
+        6 => "h6",
+        else => unreachable,
+    });
+    try el.appendContent(try paragraph.parseContent(alloc, l));
+    return el;
+}

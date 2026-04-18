@@ -1,15 +1,15 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const Lexed = @import("lexer/Lexed.zig");
 const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
-const Allocator = std.mem.Allocator;
 const paragraph = @import("paragraph.zig");
+const title = @import("title.zig");
 
 pub const Error = error{
     InvalidSequence,
-    UnclosedModifier,
     FeatureNotSupported,
-} || Lexer.Error;
+} || Lexer.Error || paragraph.Error;
 
 pub fn parse(parent: Allocator, content: []const u8) Error![]const u8 {
     var arena = std.heap.ArenaAllocator.init(parent);
@@ -20,10 +20,16 @@ pub fn parse(parent: Allocator, content: []const u8) Error![]const u8 {
 
     var l = try Lexer.init(content);
     while (l.nextKind()) |it| {
-        switch (it) {
-            .literal, .bold, .italic, .code => try elements.append(alloc, try paragraph.parseParagraph(alloc, &l)),
+        try elements.append(alloc, switch (it) {
+            .literal, .bold, .italic, .code => try paragraph.parse(alloc, &l),
+            .title => try title.parse(alloc, &l),
+            .weak_delimiter, .strong_delimiter => {
+                var v = (try l.next(alloc)).?;
+                v.deinit();
+                continue;
+            },
             else => return Error.FeatureNotSupported,
-        }
+        });
     }
 
     var res = try std.ArrayList(u8).initCapacity(parent, elements.items.len);
@@ -59,4 +65,21 @@ test "parse paragraphs" {
         \\foo bar
         \\in new paragraph
     , "<p>hello world</p><p>foo bar in new paragraph</p>");
+}
+
+test "parse title" {
+    var arena = std.heap.DebugAllocator(.{}).init;
+    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
+    const alloc = arena.allocator();
+    
+    try doTest(alloc, "# hey", "<h1>hey</h1>");
+    try doTest(alloc, "## hey", "<h2>hey</h2>");
+    try doTest(alloc, "### hey", "<h3>hey</h3>");
+
+    try doTest(alloc,
+        \\# title
+        \\hello world ;3
+        \\## subtitle
+        \\hehe
+    , "<h1>title</h1><p>hello world ;3</p><h2>subtitle</h2><p>hehe</p>");
 }

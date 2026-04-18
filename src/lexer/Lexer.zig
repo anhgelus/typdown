@@ -39,22 +39,21 @@ pub fn next(self: *Self, alloc: Allocator) Error!?Lexed {
         }
         // conds here to avoid creating complex condition in while
         const next_rune = self.iter.peek(1);
-        if (next_rune.len > 0) {
-            if (self.getCurrentKind(current_kind, next_rune, acc.items).kind != current_kind.? and
-                (override_if == null or !eql(u8, override_if.?, next_rune)))
-            {
-                if (!requiresSpace(current_kind.?)) break;
-                if (eql(u8, next_rune, " ")) {
-                    // consume next space
-                    _ = self.iter.nextCodepoint();
-                    break;
-                }
-                current_kind = switch (current_kind.?) {
-                    .title => if (acc.items.len == 1) .tag else .literal,
-                    else => .literal,
-                };
+        if (requiresSpace(current_kind.?)) {
+            if (eql(u8, next_rune, " ")) {
+                // consume next space
+                _ = self.iter.nextCodepoint();
+                break;
             }
+            current_kind = switch (current_kind.?) {
+                .title => if (acc.items.len == 1) .tag else .literal,
+                else => .literal,
+            };
         }
+        if (next_rune.len > 0 and
+            self.getCurrentKind(current_kind, next_rune, acc.items).kind != current_kind.? and
+            (override_if == null or !eql(u8, override_if.?, next_rune)))
+            break;
     }
     const kind = current_kind orelse {
         acc.deinit(alloc);
@@ -76,17 +75,24 @@ const kindRes = struct {
     }
 };
 
+fn requiresDelimiter(before: ?Lexed.Kind, knd: Lexed.Kind) Lexed.Kind {
+    return if (before == null or before.?.isDelimiter()) knd else .literal;
+}
+
 fn getCurrentKind(self: *Self, before: ?Lexed.Kind, rune: []const u8, acc: []const u8) kindRes {
     if (self.force_lit) return .{ .kind = .literal };
-    if (eql(u8, rune, "\n")) return .{ .kind = .delimiter };
+    if (eql(u8, rune, "\n")) return .{
+        .kind = if (before == .weak_delimiter) .strong_delimiter else .weak_delimiter,
+        .override_if = rune,
+    };
     if (eql(u8, rune, "*")) return .{ .kind = .bold };
     if (eql(u8, rune, "_")) return .{ .kind = .italic };
-    if (eql(u8, rune, ">")) return .{ .kind = .quote };
-    if (eql(u8, rune, "-")) return .{ .kind = .list_unordored };
-    if (eql(u8, rune, ".")) return .{ .kind = .list_ordored };
-    if (eql(u8, rune, "!")) return .{ .kind = .image };
+    if (eql(u8, rune, ">")) return .{ .kind = requiresDelimiter(before, .quote) };
+    if (eql(u8, rune, ".")) return .{ .kind = requiresDelimiter(before, .list_ordored) };
+    if (eql(u8, rune, "-")) return .{ .kind = requiresDelimiter(before, .list_unordored) };
+    if (eql(u8, rune, "!")) return .{ .kind = requiresDelimiter(before, .image) };
     if (eql(u8, rune, "<")) return .{ .kind = .ref };
-    if (is('#', 6, rune, acc)) return .{ .kind = .title };
+    if (is('#', 6, rune, acc)) return .{ .kind = requiresDelimiter(before, .title) };
     if (isIn(links, rune, acc, before, .link)) return .{ .kind = .link };
     if (isOneOrThree(":", rune, acc, .ref, .callout)) |it| return it;
     if (isOneOrThree("$", rune, acc, .math, .math_block)) |it| return it;
@@ -95,9 +101,9 @@ fn getCurrentKind(self: *Self, before: ?Lexed.Kind, rune: []const u8, acc: []con
 }
 
 fn is(v: u8, maxLen: usize, rune: []const u8, acc: []const u8) bool {
-    if (acc.len >= maxLen) return false;
-    for (0..acc.len) |i| if (acc[i] != v) return false;
-    return eql(u8, rune, &[_]u8{v});
+    if (!eql(u8, rune, &[_]u8{v})) return false;
+    for (acc) |it| if (it != v) return true;
+    return acc.len < maxLen;
 }
 
 const links = &[_][]const u8{ "[", "](", ")" };
@@ -177,7 +183,7 @@ test "lexer common" {
     const expect = std.testing.expect;
 
     var arena = std.heap.DebugAllocator(.{}).init;
-    defer _ = arena.deinit();
+    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
     const alloc = arena.allocator();
 
     var l = try init("# hello world :)");
@@ -186,6 +192,43 @@ test "lexer common" {
     try doTest(alloc, &l, .literal, "hello world ");
     try doTest(alloc, &l, .ref, ":");
     try doTest(alloc, &l, .link, ")");
+
+    try expect(try l.next(alloc) == null);
+}
+
+test "lexer multiline" {
+    const expect = std.testing.expect;
+
+    var arena = std.heap.DebugAllocator(.{}).init;
+    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
+    const alloc = arena.allocator();
+
+    var l = try init(
+        \\# Title
+        \\
+        \\paragraph
+        \\# a title
+        \\a # in sentence
+        \\
+        \\#tag
+        \\#tag2
+    );
+
+    try doTest(alloc, &l, .title, "#");
+    try doTest(alloc, &l, .literal, "Title");
+    try doTest(alloc, &l, .strong_delimiter, "\n\n");
+    try doTest(alloc, &l, .literal, "paragraph");
+    try doTest(alloc, &l, .weak_delimiter, "\n");
+    try doTest(alloc, &l, .title, "#");
+    try doTest(alloc, &l, .literal, "a title");
+    try doTest(alloc, &l, .weak_delimiter, "\n");
+    try doTest(alloc, &l, .literal, "a # in sentence");
+    try doTest(alloc, &l, .strong_delimiter, "\n\n");
+    try doTest(alloc, &l, .tag, "#");
+    try doTest(alloc, &l, .literal, "tag");
+    try doTest(alloc, &l, .weak_delimiter, "\n");
+    try doTest(alloc, &l, .tag, "#");
+    try doTest(alloc, &l, .literal, "tag2");
 
     try expect(try l.next(alloc) == null);
 }

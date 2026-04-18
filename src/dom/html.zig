@@ -35,7 +35,7 @@ fn doTest(alloc: std.mem.Allocator, el: []const u8, exp: []const u8) !void {
 
 test "escaping html" {
     var arena = std.heap.DebugAllocator(.{}).init;
-    defer _ = arena.deinit();
+    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
     const alloc = arena.allocator();
 
     try doTest(alloc, "hello world", "hello world");

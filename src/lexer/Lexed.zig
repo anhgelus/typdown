@@ -3,7 +3,8 @@ const Allocator = std.mem.Allocator;
 
 pub const Kind = enum {
     literal,
-    delimiter,
+    weak_delimiter,
+    strong_delimiter,
     title,
     quote,
     code,
@@ -19,6 +20,14 @@ pub const Kind = enum {
     list_ordored,
     list_unordored,
     tag,
+
+    pub fn isDelimiter(self: @This()) bool {
+        return switch (self) {
+            .weak_delimiter => true,
+            .strong_delimiter => true,
+            else => false,
+        };
+    }
 };
 
 allocator: Allocator,

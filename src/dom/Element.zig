@@ -21,7 +21,7 @@ literal: ?[]const u8 = null,
 
 /// Init a new Element with the given kind.
 /// The tag will never be escaped.
-/// The owernship is always taken.
+/// It always duplicates strings.
 pub fn init(alloc: Allocator, knd: Kind, tag: []const u8) !Self {
     var v = Self{
         .kind = knd,
@@ -36,7 +36,7 @@ pub fn init(alloc: Allocator, knd: Kind, tag: []const u8) !Self {
 
 /// Init a new literal element.
 /// The literal content will never be escaped, see initLitEscaped if you want to escape it.
-/// The owernship is always taken.
+/// It always duplicates strings.
 pub fn initLit(alloc: Allocator, literal: []const u8) !Self {
     var v = Self{
         .kind = .literal,
@@ -51,7 +51,7 @@ pub fn initLit(alloc: Allocator, literal: []const u8) !Self {
 
 /// Init a new literal element that is escaped.
 /// The literal content will be escaped, see initLit if you don't want this behavior.
-/// The owernship is always taken.
+/// It always duplicates strings.
 pub fn initLitEscaped(alloc: Allocator, literal: []const u8) !Self {
     const escaped = try html.escape(alloc, literal);
     defer alloc.free(escaped);
@@ -198,7 +198,7 @@ fn doTest(alloc: Allocator, el: *Self, exp: []const u8) !void {
 
 test "void element" {
     var arena = std.heap.DebugAllocator(.{}).init;
-    defer _ = arena.deinit();
+    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
     const alloc = arena.allocator();
 
     var br = try init(alloc, .void, "br");
@@ -220,7 +220,7 @@ test "void element" {
 
 test "content element" {
     var arena = std.heap.DebugAllocator(.{}).init;
-    defer _ = arena.deinit();
+    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
     const alloc = arena.allocator();
 
     var p = try init(alloc, .content, "p");

@@ -21,26 +21,26 @@ pub const Kind = enum {
     tag,
 };
 
-gpa: Allocator,
+allocator: Allocator,
 kind: Kind,
 content: std.ArrayList(u8),
 
 const Self = @This();
 
-pub fn init(gpa: Allocator, kind: Kind, content: std.ArrayList(u8)) Self {
+pub fn init(alloc: Allocator, kind: Kind, content: std.ArrayList(u8)) Self {
     return .{
-        .gpa = gpa,
+        .allocator = alloc,
         .kind = kind,
         .content = content,
     };
 }
 
 pub fn deinit(self: *Self) void {
-    self.content.deinit(self.gpa);
+    self.content.deinit(self.allocator);
 }
 
-pub fn clone(self: *const Self, gpa: Allocator) Allocator.Error!std.ArrayList(u8) {
-    return self.content.clone(gpa);
+pub fn clone(self: *const Self, alloc: Allocator) Allocator.Error!std.ArrayList(u8) {
+    return self.content.clone(alloc);
 }
 
 pub fn equals(self: *const Self, kind: Kind, content: []const u8) bool {

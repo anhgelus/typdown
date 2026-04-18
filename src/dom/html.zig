@@ -1,32 +1,32 @@
 const std = @import("std");
 const eql = std.mem.eql;
 
-pub fn escape(gpa: std.mem.Allocator, v: []const u8) ![]const u8 {
-    var acc = try std.ArrayList(u8).initCapacity(gpa, v.len);
-    errdefer acc.deinit(gpa);
+pub fn escape(alloc: std.mem.Allocator, v: []const u8) ![]const u8 {
+    var acc = try std.ArrayList(u8).initCapacity(alloc, v.len);
+    errdefer acc.deinit(alloc);
     const view = try std.unicode.Utf8View.init(v);
     var iter = view.iterator();
     while (iter.nextCodepointSlice()) |rune| {
         if (eql(u8, rune, "&")) {
-            try acc.appendSlice(gpa, "&amp;");
+            try acc.appendSlice(alloc, "&amp;");
         } else if (eql(u8, rune, "'")) {
-            try acc.appendSlice(gpa, "&#39;");
+            try acc.appendSlice(alloc, "&#39;");
         } else if (eql(u8, rune, "<")) {
-            try acc.appendSlice(gpa, "&lt;");
+            try acc.appendSlice(alloc, "&lt;");
         } else if (eql(u8, rune, ">")) {
-            try acc.appendSlice(gpa, "&gt;");
+            try acc.appendSlice(alloc, "&gt;");
         } else if (eql(u8, rune, "\"")) {
-            try acc.appendSlice(gpa, "&#34;");
+            try acc.appendSlice(alloc, "&#34;");
         } else {
-            try acc.appendSlice(gpa, rune);
+            try acc.appendSlice(alloc, rune);
         }
     }
-    return acc.toOwnedSlice(gpa);
+    return acc.toOwnedSlice(alloc);
 }
 
-fn doTest(gpa: std.mem.Allocator, el: []const u8, exp: []const u8) !void {
-    const got = try escape(gpa, el);
-    defer gpa.free(got);
+fn doTest(alloc: std.mem.Allocator, el: []const u8, exp: []const u8) !void {
+    const got = try escape(alloc, el);
+    defer alloc.free(got);
     std.testing.expect(eql(u8, got, exp)) catch |err| {
         std.debug.print("{s}\n", .{got});
         return err;
@@ -36,12 +36,12 @@ fn doTest(gpa: std.mem.Allocator, el: []const u8, exp: []const u8) !void {
 test "escaping html" {
     var arena = std.heap.DebugAllocator(.{}).init;
     defer _ = arena.deinit();
-    const gpa = arena.allocator();
+    const alloc = arena.allocator();
 
-    try doTest(gpa, "hello world", "hello world");
-    try doTest(gpa, "hello&world", "hello&amp;world");
-    try doTest(gpa, "hello'world", "hello&#39;world");
-    try doTest(gpa, "hello<world", "hello&lt;world");
-    try doTest(gpa, "hello>world", "hello&gt;world");
-    try doTest(gpa, "hello\"world", "hello&#34;world");
+    try doTest(alloc, "hello world", "hello world");
+    try doTest(alloc, "hello&world", "hello&amp;world");
+    try doTest(alloc, "hello'world", "hello&#39;world");
+    try doTest(alloc, "hello<world", "hello&lt;world");
+    try doTest(alloc, "hello>world", "hello&gt;world");
+    try doTest(alloc, "hello\"world", "hello&#34;world");
 }

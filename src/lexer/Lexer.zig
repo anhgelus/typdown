@@ -18,9 +18,9 @@ pub fn init(content: []const u8) Error!Self {
     return .{ .iter = view.iterator() };
 }
 
-pub fn next(self: *Self, gpa: Allocator) Error!?Lexed {
-    var acc = try std.ArrayList(u8).initCapacity(gpa, 2);
-    errdefer acc.deinit(gpa);
+pub fn next(self: *Self, alloc: Allocator) Error!?Lexed {
+    var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
+    errdefer acc.deinit(alloc);
 
     var current_kind: ?Lexed.Kind = null;
     while (self.iter.nextCodepointSlice()) |rune| {
@@ -35,7 +35,7 @@ pub fn next(self: *Self, gpa: Allocator) Error!?Lexed {
             const res = self.getCurrentKind(current_kind, rune, acc.items);
             current_kind = res.kind;
             override_if = res.override_if;
-            try acc.appendSlice(gpa, rune);
+            try acc.appendSlice(alloc, rune);
         }
         // conds here to avoid creating complex condition in while
         const next_rune = self.iter.peek(1);
@@ -57,10 +57,10 @@ pub fn next(self: *Self, gpa: Allocator) Error!?Lexed {
         }
     }
     const kind = current_kind orelse {
-        acc.deinit(gpa);
+        acc.deinit(alloc);
         return null;
     };
-    return .init(gpa, kind, acc);
+    return .init(alloc, kind, acc);
 }
 
 const kindRes = struct {
@@ -149,8 +149,8 @@ fn requiresSpace(k: Lexed.Kind) bool {
     };
 }
 
-fn doTest(gpa: Allocator, l: *Self, k: Lexed.Kind, v: []const u8) !void {
-    var first = (try l.next(gpa)).?;
+fn doTest(alloc: Allocator, l: *Self, k: Lexed.Kind, v: []const u8) !void {
+    var first = (try l.next(alloc)).?;
     defer first.deinit();
     std.testing.expect(first.equals(k, v)) catch |err| {
         std.debug.print("{}({s})\n", .{ first.kind, first.content.items });
@@ -178,14 +178,14 @@ test "lexer common" {
 
     var arena = std.heap.DebugAllocator(.{}).init;
     defer _ = arena.deinit();
-    const gpa = arena.allocator();
+    const alloc = arena.allocator();
 
     var l = try init("# hello world :)");
 
-    try doTest(gpa, &l, .title, "#");
-    try doTest(gpa, &l, .literal, "hello world ");
-    try doTest(gpa, &l, .ref, ":");
-    try doTest(gpa, &l, .link, ")");
+    try doTest(alloc, &l, .title, "#");
+    try doTest(alloc, &l, .literal, "hello world ");
+    try doTest(alloc, &l, .ref, ":");
+    try doTest(alloc, &l, .link, ")");
 
-    try expect(try l.next(gpa) == null);
+    try expect(try l.next(alloc) == null);
 }

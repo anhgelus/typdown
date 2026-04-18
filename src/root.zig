@@ -1,5 +1,5 @@
 const std = @import("std");
-pub const ast = @import("ast.zig");
+pub const parser = @import("parser.zig");
 
 pub fn bufferedPrint() !void {
     // Stdout is for the actual output of your application, for example if you

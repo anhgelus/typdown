@@ -45,7 +45,8 @@ pub fn next(self: *Self, alloc: Allocator) Error!?Lexed {
         }
         // conds here to avoid creating complex condition in while
         const next_rune = self.iter.peek(1);
-        if (requiresSpace(current_kind.?)) {
+        const next_kind = self.getCurrentKind(current_kind, next_rune, acc.items).kind;
+        if (requiresSpace(current_kind.?) and next_kind != current_kind.?) {
             if (eql(u8, next_rune, " ")) {
                 // consume next space
                 _ = self.iter.nextCodepoint();
@@ -57,7 +58,7 @@ pub fn next(self: *Self, alloc: Allocator) Error!?Lexed {
             };
         }
         if (next_rune.len > 0 and
-            self.getCurrentKind(current_kind, next_rune, acc.items).kind != current_kind.? and
+            next_kind != current_kind.? and
             (override_if == null or !eql(u8, override_if.?, next_rune)))
             break;
     }
@@ -82,7 +83,7 @@ const kindRes = struct {
 };
 
 fn requiresDelimiter(before: ?Lexed.Kind, knd: Lexed.Kind) Lexed.Kind {
-    return if (before == null or before.?.isDelimiter()) knd else .literal;
+    return if (before == null or before.?.isDelimiter() or before.? == knd) knd else .literal;
 }
 
 fn getCurrentKind(self: *Self, before: ?Lexed.Kind, rune: []const u8, acc: []const u8) kindRes {
@@ -154,9 +155,7 @@ fn isOneOrThree(op: []const u8, rune: []const u8, p: []const u8, one: Lexed.Kind
 
 fn requiresSpace(k: Lexed.Kind) bool {
     return switch (k) {
-        .title => true,
-        .list_ordored => true,
-        .list_unordored => true,
+        .title, .list_ordored, .list_unordored => true,
         else => false,
     };
 }
@@ -185,6 +184,22 @@ test "one or three" {
     try expect(isOneOrThree(":", "a", ":", .ref, .callout) == null);
 }
 
+test "is" {
+    const expect = std.testing.expect;
+
+    // valid
+    try expect(is('#', 6, "#", ""));
+    try expect(is('#', 6, "#", "#"));
+    try expect(is('#', 6, "#", "##"));
+    try expect(is('#', 6, "#", "###"));
+    try expect(is('#', 6, "#", "####"));
+    try expect(is('#', 6, "#", "#####"));
+
+    // invalid
+    try expect(!is('#', 6, "#", "######"));
+    try expect(!is('#', 6, "u", "##"));
+}
+
 test "lexer common" {
     const expect = std.testing.expect;
 
@@ -192,9 +207,9 @@ test "lexer common" {
     defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
     const alloc = arena.allocator();
 
-    var l = try init("# hello world :)");
+    var l = try init("## hello world :)");
 
-    try doTest(alloc, &l, .title, "#");
+    try doTest(alloc, &l, .title, "##");
     try doTest(alloc, &l, .literal, "hello world ");
     try doTest(alloc, &l, .ref, ":");
     try doTest(alloc, &l, .link, ")");

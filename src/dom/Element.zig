@@ -12,7 +12,7 @@ pub const Kind = enum {
 const Self = @This();
 
 kind: Kind,
-alloc: Allocator,
+arena: std.heap.ArenaAllocator,
 tag: ?[]const u8 = null,
 attributes: std.StringArrayHashMap([]const u8),
 class_list: std.BufSet,
@@ -21,33 +21,41 @@ literal: ?[]const u8 = null,
 
 /// Init a new Element with the given kind.
 /// The tag will never be escaped.
-pub fn init(alloc: Allocator, knd: Kind, tag: []const u8) Self {
-    return .{
+/// The owernship is always taken.
+pub fn init(alloc: Allocator, knd: Kind, tag: []const u8) !Self {
+    var v = Self{
         .kind = knd,
-        .alloc = alloc,
-        .tag = tag,
+        .arena = .init(alloc),
         .attributes = .init(alloc),
         .class_list = .init(alloc),
     };
+    var a = v.arena.allocator();
+    v.tag = try a.dupe(u8, tag);
+    return v;
 }
 
 /// Init a new literal element.
 /// The literal content will never be escaped, see initLitEscaped if you want to escape it.
-/// The literal content must be free'd by the allocator (use Allocator.dupe if you want to use a const string).
-pub fn initLit(alloc: Allocator, literal: []const u8) Self {
-    return .{
+/// The owernship is always taken.
+pub fn initLit(alloc: Allocator, literal: []const u8) !Self {
+    var v = Self{
         .kind = .literal,
-        .alloc = alloc,
-        .literal = literal,
+        .arena = .init(alloc),
         .attributes = .init(alloc),
         .class_list = .init(alloc),
     };
+    var a = v.arena.allocator();
+    v.literal = try a.dupe(u8, literal);
+    return v;
 }
 
 /// Init a new literal element that is escaped.
 /// The literal content will be escaped, see initLit if you don't want this behavior.
+/// The owernship is always taken.
 pub fn initLitEscaped(alloc: Allocator, literal: []const u8) !Self {
-    return .initLit(alloc, try html.escape(alloc, literal));
+    const escaped = try html.escape(alloc, literal);
+    defer alloc.free(escaped);
+    return .initLit(alloc, escaped);
 }
 
 pub fn deinit(self: *Self) void {
@@ -57,8 +65,8 @@ pub fn deinit(self: *Self) void {
         var v = it;
         v.deinit();
     }
-    self.content.deinit(self.alloc);
-    if (self.literal) |it| self.alloc.free(it);
+    self.content.deinit(self.arena.allocator());
+    self.arena.deinit();
 }
 
 pub fn render(self: *Self, alloc: Allocator) ![]const u8 {
@@ -129,7 +137,8 @@ fn renderClass(self: *const Self, alloc: Allocator) !?[]const u8 {
 }
 
 pub fn setAttribute(self: *Self, k: []const u8, v: []const u8) !void {
-    try self.attributes.put(k, v);
+    var alloc = self.arena.allocator();
+    try self.attributes.put(try alloc.dupe(u8, k), try alloc.dupe(u8, v));
 }
 
 pub fn removeAttribute(self: *Self, k: []const u8) void {
@@ -141,7 +150,8 @@ pub fn hasAttribute(self: *Self, k: []const u8) bool {
 }
 
 pub fn appendClass(self: *Self, v: []const u8) !void {
-    try self.class_list.insert(v);
+    var alloc = self.arena.allocator();
+    try self.class_list.insert(try alloc.dupe(u8, v));
 }
 
 pub fn hasClass(self: *Self, v: []const u8) bool {
@@ -153,25 +163,26 @@ pub fn removeClass(self: *Self, v: []const u8) void {
 }
 
 pub fn appendContent(self: *Self, content: Self) !void {
-    return self.content.append(self.alloc, content);
+    const alloc = self.arena.allocator();
+    return self.content.append(alloc, content);
 }
 
 pub fn initImg(alloc: Allocator, src: []const u8, alt: []const u8) !Self {
-    var el = init(alloc, .void, "img");
+    var el = try init(alloc, .void, "img");
     try el.setAttribute("src", src);
     try el.setAttribute("alt", alt);
     return el;
 }
 
 pub fn initContent(alloc: Allocator, tag: []const u8, content: []Self) !Self {
-    var el = init(alloc, .content, tag);
+    var el = try init(alloc, .content, tag);
     for (content) |it| try el.appendContent(it);
     return el;
 }
 
 /// Init a paragraph tag with an automatically escaped content.
 pub fn initParagraph(alloc: Allocator, content: []const u8) !Self {
-    var el = init(alloc, .content, "p");
+    var el = try init(alloc, .content, "p");
     try el.appendContent(try initLitEscaped(alloc, content));
     return el;
 }
@@ -190,12 +201,12 @@ test "void element" {
     defer _ = arena.deinit();
     const alloc = arena.allocator();
 
-    var br = init(alloc, .void, "br");
+    var br = try init(alloc, .void, "br");
     defer br.deinit();
 
     try doTest(alloc, &br, "<br>");
 
-    var img = init(alloc, .void, "img");
+    var img = try init(alloc, .void, "img");
     defer img.deinit();
     try img.setAttribute("src", "foo");
     try img.setAttribute("alt", "bar");
@@ -212,10 +223,10 @@ test "content element" {
     defer _ = arena.deinit();
     const alloc = arena.allocator();
 
-    var p = init(alloc, .content, "p");
+    var p = try init(alloc, .content, "p");
     defer p.deinit();
 
-    var content = initLit(alloc, try alloc.dupe(u8, "hello world"));
+    var content = try initLit(alloc, "hello world");
     try p.appendContent(content);
 
     try doTest(alloc, &content, "hello world");
@@ -226,7 +237,7 @@ test "content element" {
 
     try doTest(alloc, &p_managed, "<p>hello world</p>");
 
-    var div = init(alloc, .content, "div");
+    var div = try init(alloc, .content, "div");
     defer div.deinit();
     try div.appendClass("foo-bar");
     try div.appendContent(try initParagraph(alloc, "hello world"));

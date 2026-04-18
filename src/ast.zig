@@ -3,6 +3,7 @@ const Lexed = @import("lexer/Lexed.zig");
 const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
 const Allocator = std.mem.Allocator;
+const paragraph = @import("paragraph.zig");
 
 pub const Error = error{
     InvalidSequence,
@@ -20,7 +21,7 @@ pub fn parse(parent: Allocator, content: []const u8) Error![]const u8 {
     var l = try Lexer.init(content);
     while (l.nextKind()) |it| {
         switch (it) {
-            .literal, .bold, .italic, .code => try elements.append(alloc, try parseContent(alloc, &l)),
+            .literal, .bold, .italic, .code => try elements.append(alloc, try paragraph.parseParagraph(alloc, &l)),
             else => return Error.FeatureNotSupported,
         }
     }
@@ -33,37 +34,6 @@ pub fn parse(parent: Allocator, content: []const u8) Error![]const u8 {
     return res.toOwnedSlice(parent);
 }
 
-fn parseContent(alloc: Allocator, l: *Lexer) Error!Element {
-    var content = Element.initEmpty(alloc);
-    const v = (try l.next(alloc)).?;
-    switch (v.kind) {
-        .literal => {
-            const el = try Element.initLitEscaped(alloc, v.content.items);
-            try content.appendContent(el);
-        },
-        .bold => try content.appendContent(try parseModifier(alloc, l, .bold, "b")),
-        .italic => try content.appendContent(try parseModifier(alloc, l, .italic, "em")),
-        .code => try content.appendContent(try parseModifier(alloc, l, .code, "code")),
-        else => return Error.InvalidSequence,
-    }
-    return content;
-}
-
-fn parseModifier(alloc: Allocator, l: *Lexer, knd: Lexed.Kind, tag: []const u8) Error!Element {
-    var el = try Element.init(alloc, .content, tag);
-    while (l.nextKind()) |it| {
-        if (it == knd) {
-            // consuming the finisher
-            var v = (try l.next(alloc)).?;
-            v.deinit();
-            break;
-        }
-        if (it.isDelimiter()) return Error.UnclosedModifier;
-        try el.appendContent(try parseContent(alloc, l));
-    }
-    return el;
-}
-
 fn doTest(alloc: Allocator, t: []const u8, v: []const u8) !void {
     const g = try parse(alloc, t);
     defer alloc.free(g);
@@ -73,12 +43,20 @@ fn doTest(alloc: Allocator, t: []const u8, v: []const u8) !void {
     };
 }
 
-test "parse content" {
+test "parse paragraphs" {
     var arena = std.heap.DebugAllocator(.{}).init;
     defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
     const alloc = arena.allocator();
 
-    try doTest(alloc, "hello world", "hello world");
-    try doTest(alloc, "*hello* world", "<b>hello</b> world");
-    try doTest(alloc, "*he_ll_o* world", "<b>he<em>ll</em>o</b> world");
+    try doTest(alloc, "hello world", "<p>hello world</p>");
+    try doTest(alloc, "*hello* world", "<p><b>hello</b> world</p>");
+    try doTest(alloc, "*he_ll_o* world", "<p><b>he<em>ll</em>o</b> world</p>");
+
+    try doTest(alloc,
+        \\hello
+        \\world
+        \\
+        \\foo bar
+        \\in new paragraph
+    , "<p>hello world</p><p>foo bar in new paragraph</p>");
 }

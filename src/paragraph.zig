@@ -5,7 +5,7 @@ const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
 const parser = @import("parser.zig");
 
-pub const Error = error{UnclosedModifier} || Lexer.Error;
+pub const Error = error{ModifierNotClosed} || Lexer.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Element.init(alloc, .content, "p");
@@ -51,10 +51,10 @@ fn parseModifier(alloc: Allocator, l: *Lexer, knd: Lexed.Kind, tag: []const u8) 
             // consuming the finisher
             var v = (try l.next(alloc)).?;
             v.deinit();
-            break;
+            return el;
         }
-        if (it.isDelimiter()) return Error.UnclosedModifier;
+        if (it.isDelimiter()) return Error.ModifierNotClosed;
         try el.appendContent(try parseContent(alloc, l));
     }
-    return el;
+    return Error.ModifierNotClosed;
 }

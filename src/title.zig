@@ -5,10 +5,10 @@ const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
 const paragraph = @import("paragraph.zig");
 
-pub const Error = paragraph.Error || Lexer.Error;
+pub const Error = error{InvalidTitleContent} || paragraph.Error || Lexer.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
-    const v = (try l.next(alloc)).?;
+    var v = (try l.next(alloc)).?;
     var el = try Element.init(alloc, .content, switch (v.content.items.len) {
         1 => "h1",
         2 => "h2",
@@ -19,5 +19,8 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         else => unreachable,
     });
     try el.appendContent(try paragraph.parseContent(alloc, l));
+    v = (try l.next(alloc)) orelse return el;
+    if (!v.kind.isDelimiter()) return Error.InvalidTitleContent;
+    v.deinit();
     return el;
 }

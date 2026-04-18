@@ -1,6 +1,5 @@
 const std = @import("std");
-pub const lexer = @import("lexer/Lexer.zig");
-pub const element = @import("dom/Element.zig");
+pub const ast = @import("ast.zig");
 
 pub fn bufferedPrint() !void {
     // Stdout is for the actual output of your application, for example if you

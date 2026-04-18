@@ -34,6 +34,15 @@ pub fn init(alloc: Allocator, knd: Kind, tag: []const u8) !Self {
     return v;
 }
 
+pub fn initEmpty(alloc: Allocator) Self {
+    return .{
+        .kind = .content,
+        .arena = .init(alloc),
+        .attributes = .init(alloc),
+        .class_list = .init(alloc),
+    };
+}
+
 /// Init a new literal element.
 /// The literal content will never be escaped, see initLitEscaped if you want to escape it.
 /// It always duplicates strings.

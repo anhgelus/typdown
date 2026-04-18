@@ -13,9 +13,15 @@ pub const Error = error{
     InvalidUtf8,
 } || Allocator.Error;
 
-pub fn init(content: []const u8) Error!Self {
+pub fn init(content: []const u8) error{InvalidUtf8}!Self {
     const view = try unicode.Utf8View.init(content);
     return .{ .iter = view.iterator() };
+}
+
+pub fn nextKind(self: *Self) ?Lexed.Kind {
+    const next_rune = self.iter.peek(1);
+    if (next_rune.len == 0) return null;
+    return self.getCurrentKind(null, next_rune, &[0]u8{}).kind;
 }
 
 pub fn next(self: *Self, alloc: Allocator) Error!?Lexed {

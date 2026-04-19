@@ -1,8 +1,8 @@
 const std = @import("std");
-pub const parser = @import("parser.zig");
+const parser = @import("parser.zig");
 pub const Error = parser.Error;
 
-fn getErrorCode(err: Error) u8 {
+inline fn getErrorCode(err: Error) u8 {
     return switch (err) {
         Error.OutOfMemory => 1,
         Error.InvalidUtf8 => 2,
@@ -34,9 +34,10 @@ export fn getErrorString(code: u8) [*:0]const u8 {
 /// Returns a not null strings and set the code to 0 if everything is fine.
 /// Else, it returns null and set an error code above 0.
 /// Use getErrorString to retrieve the string linked with the error code.
+/// Use zigParse if you are in Zig.
 export fn parse(content: [*:0]const u8, code: *u8) ?[*:0]const u8 {
     const alloc = std.heap.c_allocator;
-    const res = parser.parse(alloc, std.mem.span(content)) catch |err| {
+    const res = zigParse(alloc, std.mem.span(content)) catch |err| {
         code.* = getErrorCode(err);
         return null;
     };
@@ -48,11 +49,18 @@ export fn parse(content: [*:0]const u8, code: *u8) ?[*:0]const u8 {
     };
 }
 
+/// Parse the content.
+/// 
+/// Use parse if you are not in Zig.
+pub fn zigParse(alloc: std.mem.Allocator, content: []const u8) Error![]const u8 {
+    return parser.parse(alloc, content);
+}
+
 test {
     std.testing.refAllDeclsRecursive(@This());
 }
 
-fn doTest(content: [*:0]const u8, exp: []const u8, exp_code: u8) !void {
+fn doTest(content: [*:0]const u8, exp: []const u8, comptime exp_code: u8) !void {
     const expect = std.testing.expect;
 
     var code: u8 = undefined;

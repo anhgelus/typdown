@@ -12,16 +12,13 @@ const doTestError = testing.doError;
 pub const Error = error{InvalidLink} || Lexer.Error || content.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
-    var el = try Element.init(alloc, .content, "a");
-    errdefer el.deinit();
     const data = try parseData(alloc, l);
-    const second = data.second orelse {
-        el.deinit();
-        return data.first.?;
-    };
+    const second = data.second orelse return data.first.?;
     defer alloc.free(second);
     var in = if (data.first) |first| first else try Element.initLitEscaped(alloc, second);
     errdefer in.deinit();
+    var el = try Element.init(alloc, .content, "a");
+    errdefer el.deinit();
     try el.appendContent(in);
     try el.setAttribute("href", second);
     return el;
@@ -33,16 +30,15 @@ pub const Data = struct {
 };
 
 pub fn parseData(alloc: Allocator, l: *Lexer) Error!Data {
-    var el = Element.initEmpty(alloc);
-    errdefer el.deinit();
     var v = (try l.next(alloc)).?;
     defer v.deinit();
     if (v.kind != .link) return Error.InvalidLink;
     if (!eql(u8, v.content.items, "[")) {
-        const first = try Element.initLitEscaped(alloc, v.content.items);
-        el.deinit();
-        return .{ .first = first, .second = null };
+        const el = try Element.initLitEscaped(alloc, v.content.items);
+        return .{ .first = el, .second = null };
     }
+    var el = Element.initEmpty(alloc);
+    errdefer el.deinit();
     while (l.nextKind()) |kind| {
         switch (kind) {
             .weak_delimiter, .strong_delimiter => return Error.InvalidLink,

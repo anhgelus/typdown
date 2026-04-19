@@ -7,6 +7,7 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("typdown", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
+        .link_libc = true,
     });
 
     //const exe = b.addExecutable(.{
@@ -30,7 +31,7 @@ pub fn build(b: *std.Build) void {
     //if (b.args) |args| {
     //    run_cmd.addArgs(args);
     //}
-    
+
     const mod_tests = b.addTest(.{
         .root_module = mod,
     });

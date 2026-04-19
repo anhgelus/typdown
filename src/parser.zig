@@ -11,20 +11,30 @@ pub const Error = error{
     FeatureNotSupported,
 } || Lexer.Error || paragraph.Error || title.Error || link.Error;
 
+pub fn parseReader(parent: Allocator, r: *std.io.Reader) ![]const u8 {
+    var l = try Lexer.initReader(parent, r);
+    defer parent.free(l.iter.bytes);
+    return gen(parent, &l);
+}
+
 pub fn parse(parent: Allocator, content: []const u8) Error![]const u8 {
+    var l = try Lexer.init(content);
+    return gen(parent, &l);
+}
+
+fn gen(parent: Allocator, l: *Lexer) Error![]const u8 {
     var arena = std.heap.ArenaAllocator.init(parent);
     defer arena.deinit();
     const alloc = arena.allocator();
 
     var elements = try std.ArrayList(Element).initCapacity(alloc, 2);
 
-    var l = try Lexer.init(content);
     base: while (l.nextKind()) |it| {
         try elements.append(alloc, switch (it) {
             // block paragraph
-            .literal, .bold, .italic, .code, .link => try paragraph.parse(alloc, &l),
+            .literal, .bold, .italic, .code, .link => try paragraph.parse(alloc, l),
             // other blocks
-            .title => try title.parse(alloc, &l),
+            .title => try title.parse(alloc, l),
             .weak_delimiter, .strong_delimiter => {
                 var v = (try l.next(alloc)).?;
                 v.deinit();

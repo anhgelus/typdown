@@ -56,6 +56,15 @@ pub fn zigParse(alloc: std.mem.Allocator, content: []const u8) Error![]const u8 
     return parser.parse(alloc, content);
 }
 
+pub fn zigParseReader(alloc: std.mem.Allocator, r: *std.io.Reader) ![]const u8 {
+    return parser.parseReader(alloc, r);
+}
+
+pub fn zigParseFile(alloc: std.mem.Allocator, path: []const u8) ![]const u8 {
+    const file = try std.fs.cwd().readFileAlloc(alloc, path, std.math.maxInt(usize));
+    return zigParse(alloc, file);
+}
+
 test {
     std.testing.refAllDeclsRecursive(@This());
 }

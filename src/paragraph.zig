@@ -5,10 +5,11 @@ const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
 const parser = @import("parser.zig");
 
-pub const Error = error{ModifierNotClosed} || Lexer.Error;
+pub const Error = error{ModifierNotClosed, IllegalPlacement} || Lexer.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Element.init(alloc, .content, "p");
+    errdefer el.deinit();
     while (l.nextKind()) |kind| {
         switch (kind) {
             // because nextKind returns only an hint for the next rune
@@ -22,14 +23,30 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
                     else => return el,
                 }
             },
-            else => try el.appendContent(try parseContent(alloc, l)),
+            else => try el.appendContent(try parseLine(alloc, l)),
         }
     }
     return el;
 }
 
-pub fn parseContent(alloc: Allocator, l: *Lexer) Error!Element {
+pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
     var content = Element.initEmpty(alloc);
+    errdefer content.deinit();
+    while (l.nextKind()) |kind| {
+        switch (kind) {
+            .weak_delimiter, .strong_delimiter => return content,
+            else => {
+                const el = try parseContent(alloc, l);
+                try content.appendContent(el);
+            },
+        }
+    }
+    return content;
+}
+
+fn parseContent(alloc: Allocator, l: *Lexer) Error!Element {
+    var content = Element.initEmpty(alloc);
+    errdefer content.deinit();
     const v = (try l.next(alloc)).?;
     switch (v.kind) {
         .literal => {
@@ -39,13 +56,14 @@ pub fn parseContent(alloc: Allocator, l: *Lexer) Error!Element {
         .bold => try content.appendContent(try parseModifier(alloc, l, .bold, "b")),
         .italic => try content.appendContent(try parseModifier(alloc, l, .italic, "em")),
         .code => try content.appendContent(try parseModifier(alloc, l, .code, "code")),
-        else => unreachable,
+        else => return Error.IllegalPlacement,
     }
     return content;
 }
 
 fn parseModifier(alloc: Allocator, l: *Lexer, knd: Lexed.Kind, tag: []const u8) Error!Element {
     var el = try Element.init(alloc, .content, tag);
+    errdefer el.deinit();
     while (l.nextKind()) |it| {
         if (it == knd) {
             // consuming the finisher

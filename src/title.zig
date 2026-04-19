@@ -18,7 +18,10 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         6 => "h6",
         else => unreachable,
     });
-    try el.appendContent(try paragraph.parseContent(alloc, l));
+    try el.appendContent(paragraph.parseLine(alloc, l) catch |err| switch (err) {
+        paragraph.Error.IllegalPlacement => return Error.InvalidTitleContent,
+        else => return err,
+    });
     v = (try l.next(alloc)) orelse return el;
     if (!v.kind.isDelimiter()) return Error.InvalidTitleContent;
     v.deinit();

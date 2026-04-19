@@ -9,6 +9,7 @@ fn getErrorCode(err: Error) u8 {
         Error.FeatureNotSupported => 3,
         Error.ModifierNotClosed => 4,
         Error.InvalidTitleContent => 5,
+        Error.IllegalPlacement => 6,
     };
 }
 
@@ -20,6 +21,7 @@ export fn getErrorString(code: u8) [*:0]const u8 {
         3 => "feature not supported",
         4 => "modifier not closed",
         5 => "invalid title content",
+        6 => "illegal placement",
         else => unreachable,
     };
 }

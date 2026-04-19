@@ -74,6 +74,7 @@ test "parse paragraphs" {
     try doTestError(alloc, "hello *world", Error.ModifierNotClosed);
     try doTestError(alloc, "hello *wo_rld*", Error.ModifierNotClosed);
     try doTestError(alloc, "*hell*o *wo_rld*", Error.ModifierNotClosed);
+    try doTestError(alloc, "hello ::: world", Error.IllegalPlacement);
 }
 
 test "parse title" {
@@ -84,6 +85,8 @@ test "parse title" {
     try doTest(alloc, "# hey", "<h1>hey</h1>");
     try doTest(alloc, "## hey", "<h2>hey</h2>");
     try doTest(alloc, "### hey", "<h3>hey</h3>");
+
+    try doTest(alloc, "# hello *world*", "<h1>hello <b>world</b></h1>");
 
     try doTest(alloc,
         \\# title

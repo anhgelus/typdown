@@ -49,19 +49,10 @@ fn doTest(alloc: Allocator, t: []const u8, v: []const u8) !void {
     };
 }
 
-fn doTestError(alloc: Allocator, t: []const u8, err: Error) !void {
-    _ = parse(alloc, t) catch |e| return std.testing.expect(err == e);
-    return std.testing.expect(false);
-}
-
-test "parse paragraphs" {
+test "parse multilines" {
     var arena = std.heap.DebugAllocator(.{}).init;
     defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
     const alloc = arena.allocator();
-
-    try doTest(alloc, "hello world", "<p>hello world</p>");
-    try doTest(alloc, "*hello* world", "<p><b>hello</b> world</p>");
-    try doTest(alloc, "*he_ll_o* world", "<p><b>he<em>ll</em>o</b> world</p>");
 
     try doTest(alloc,
         \\hello
@@ -71,29 +62,10 @@ test "parse paragraphs" {
         \\in new paragraph
     , "<p>hello world</p><p>foo bar in new paragraph</p>");
 
-    try doTestError(alloc, "hello *world", Error.ModifierNotClosed);
-    try doTestError(alloc, "hello *wo_rld*", Error.ModifierNotClosed);
-    try doTestError(alloc, "*hell*o *wo_rld*", Error.ModifierNotClosed);
-    try doTestError(alloc, "hello ::: world", Error.IllegalPlacement);
-}
-
-test "parse title" {
-    var arena = std.heap.DebugAllocator(.{}).init;
-    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
-    const alloc = arena.allocator();
-
-    try doTest(alloc, "# hey", "<h1>hey</h1>");
-    try doTest(alloc, "## hey", "<h2>hey</h2>");
-    try doTest(alloc, "### hey", "<h3>hey</h3>");
-
-    try doTest(alloc, "# hello *world*", "<h1>hello <b>world</b></h1>");
-
     try doTest(alloc,
         \\# title
         \\hello world ;3
         \\## subtitle
         \\hehe
     , "<h1>title</h1><p>hello world ;3</p><h2>subtitle</h2><p>hehe</p>");
-
-    try doTestError(alloc, "# aa :::", Error.InvalidTitleContent);
 }

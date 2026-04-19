@@ -5,7 +5,7 @@ const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
 const parser = @import("parser.zig");
 
-pub const Error = error{ModifierNotClosed, IllegalPlacement} || Lexer.Error;
+pub const Error = error{ ModifierNotClosed, IllegalPlacement } || Lexer.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Element.init(alloc, .content, "p");
@@ -47,7 +47,8 @@ pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
 fn parseContent(alloc: Allocator, l: *Lexer) Error!Element {
     var content = Element.initEmpty(alloc);
     errdefer content.deinit();
-    const v = (try l.next(alloc)).?;
+    var v = (try l.next(alloc)).?;
+    defer v.deinit();
     switch (v.kind) {
         .literal => {
             const el = try Element.initLitEscaped(alloc, v.content.items);
@@ -75,4 +76,37 @@ fn parseModifier(alloc: Allocator, l: *Lexer, knd: Lexed.Kind, tag: []const u8) 
         try el.appendContent(try parseContent(alloc, l));
     }
     return Error.ModifierNotClosed;
+}
+
+fn doTest(alloc: Allocator, t: []const u8, v: []const u8) !void {
+    var l = try Lexer.init(t);
+    var p = try parse(alloc, &l);
+    defer p.deinit();
+    const g = try p.render(alloc);
+    defer alloc.free(g);
+    std.testing.expect(std.mem.eql(u8, g, v)) catch |err| {
+        std.debug.print("{s}\n", .{g});
+        return err;
+    };
+}
+
+fn doTestError(alloc: Allocator, t: []const u8, err: Error) !void {
+    var l = try Lexer.init(t);
+    _ = parse(alloc, &l) catch |e| return std.testing.expect(err == e);
+    return std.testing.expect(false);
+}
+
+test "parse paragraphs" {
+    var arena = std.heap.DebugAllocator(.{}).init;
+    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
+    const alloc = arena.allocator();
+
+    try doTest(alloc, "hello world", "<p>hello world</p>");
+    try doTest(alloc, "*hello* world", "<p><b>hello</b> world</p>");
+    try doTest(alloc, "*he_ll_o* world", "<p><b>he<em>ll</em>o</b> world</p>");
+
+    try doTestError(alloc, "hello *world", Error.ModifierNotClosed);
+    try doTestError(alloc, "hello *wo_rld*", Error.ModifierNotClosed);
+    try doTestError(alloc, "*hell*o *wo_rld*", Error.ModifierNotClosed);
+    try doTestError(alloc, "hello ::: world", Error.IllegalPlacement);
 }

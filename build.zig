@@ -15,7 +15,9 @@ pub fn build(b: *std.Build) void {
         .linkage = .dynamic,
         .root_module = mod,
     });
-    b.installArtifact(lib);
+    const installed_lib = b.addInstallArtifact(lib, .{});
+    // when emitting headers will be fixed
+    //installed_lib.emitted_h = lib.getEmittedH();
 
     const example = b.addExecutable(.{
         .name = "example",
@@ -29,7 +31,6 @@ pub fn build(b: *std.Build) void {
         .file = b.path("examples/main.c"),
     });
     example.root_module.linkLibrary(lib);
-    // manually writing headers because lib.getEmittedH() doesn't work.
     example.root_module.addIncludePath(b.path("include"));
 
     const mod_tests = b.addTest(.{
@@ -41,6 +42,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_mod_tests.step);
 
     const examples_step = b.step("examples", "Run examples");
+    examples_step.dependOn(&installed_lib.step);
     const example_run = b.addRunArtifact(example);
     examples_step.dependOn(&example_run.step);
 }

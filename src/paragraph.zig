@@ -4,6 +4,7 @@ const Lexed = @import("lexer/Lexed.zig");
 const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
 const parser = @import("parser.zig");
+const testing = @import("testing.zig");
 
 pub const Error = error{ ModifierNotClosed, IllegalPlacement } || Lexer.Error;
 
@@ -79,21 +80,11 @@ fn parseModifier(alloc: Allocator, l: *Lexer, knd: Lexed.Kind, tag: []const u8) 
 }
 
 fn doTest(alloc: Allocator, t: []const u8, v: []const u8) !void {
-    var l = try Lexer.init(t);
-    var p = try parse(alloc, &l);
-    defer p.deinit();
-    const g = try p.render(alloc);
-    defer alloc.free(g);
-    std.testing.expect(std.mem.eql(u8, g, v)) catch |err| {
-        std.debug.print("{s}\n", .{g});
-        return err;
-    };
+    return testing.do(parse, alloc, t, v);
 }
 
 fn doTestError(alloc: Allocator, t: []const u8, err: Error) !void {
-    var l = try Lexer.init(t);
-    _ = parse(alloc, &l) catch |e| return std.testing.expect(err == e);
-    return std.testing.expect(false);
+    return testing.doError(parse, alloc, t, err);
 }
 
 test "parse paragraphs" {

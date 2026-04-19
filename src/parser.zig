@@ -5,10 +5,11 @@ const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
 const paragraph = @import("paragraph.zig");
 const title = @import("title.zig");
+const link = @import("link.zig");
 
 pub const Error = error{
     FeatureNotSupported,
-} || Lexer.Error || paragraph.Error || title.Error;
+} || Lexer.Error || paragraph.Error || title.Error || link.Error;
 
 pub fn parse(parent: Allocator, content: []const u8) Error![]const u8 {
     var arena = std.heap.ArenaAllocator.init(parent);
@@ -20,7 +21,7 @@ pub fn parse(parent: Allocator, content: []const u8) Error![]const u8 {
     var l = try Lexer.init(content);
     base: while (l.nextKind()) |it| {
         try elements.append(alloc, switch (it) {
-            .literal, .bold, .italic, .code => try paragraph.parse(alloc, &l),
+            .literal, .bold, .italic, .code, .link => try paragraph.parse(alloc, &l),
             .title => try title.parse(alloc, &l),
             .weak_delimiter, .strong_delimiter => {
                 var v = (try l.next(alloc)).?;

@@ -4,9 +4,12 @@ const Lexed = @import("lexer/Lexed.zig");
 const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
 const parser = @import("parser.zig");
+const link = @import("link.zig");
 const testing = @import("testing.zig");
+const doTest = testing.do;
+const doTestError = testing.doError;
 
-pub const Error = error{ ModifierNotClosed, IllegalPlacement } || Lexer.Error;
+pub const Error = error{ ModifierNotClosed, IllegalPlacement, InvalidLink } || Lexer.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Element.init(alloc, .content, "p");
@@ -20,7 +23,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
                 if (v.kind == .strong_delimiter) return el;
                 const next = l.nextKind() orelse return el;
                 switch (next) {
-                    .literal, .italic, .code, .bold => try el.appendContent(try Element.initLit(alloc, " ")),
+                    .literal, .italic, .code, .bold, .link => try el.appendContent(try Element.initLit(alloc, " ")),
                     else => return el,
                 }
             },
@@ -36,8 +39,14 @@ pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
     while (l.nextKind()) |kind| {
         switch (kind) {
             .weak_delimiter, .strong_delimiter => return content,
+            .link => {
+                var el = try link.parse(alloc, l);
+                errdefer el.deinit();
+                try content.appendContent(el);
+            },
             else => {
-                const el = try parseContent(alloc, l);
+                var el = try parseContent(alloc, l);
+                errdefer el.deinit();
                 try content.appendContent(el);
             },
         }
@@ -45,7 +54,7 @@ pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
     return content;
 }
 
-fn parseContent(alloc: Allocator, l: *Lexer) Error!Element {
+pub fn parseContent(alloc: Allocator, l: *Lexer) Error!Element {
     var content = Element.initEmpty(alloc);
     errdefer content.deinit();
     var v = (try l.next(alloc)).?;
@@ -79,25 +88,21 @@ fn parseModifier(alloc: Allocator, l: *Lexer, knd: Lexed.Kind, tag: []const u8) 
     return Error.ModifierNotClosed;
 }
 
-fn doTest(alloc: Allocator, t: []const u8, v: []const u8) !void {
-    return testing.do(parse, alloc, t, v);
-}
-
-fn doTestError(alloc: Allocator, t: []const u8, err: Error) !void {
-    return testing.doError(parse, alloc, t, err);
-}
-
 test "parse paragraphs" {
     var arena = std.heap.DebugAllocator(.{}).init;
     defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
     const alloc = arena.allocator();
 
-    try doTest(alloc, "hello world", "<p>hello world</p>");
-    try doTest(alloc, "*hello* world", "<p><b>hello</b> world</p>");
-    try doTest(alloc, "*he_ll_o* world", "<p><b>he<em>ll</em>o</b> world</p>");
+    try doTest(parse, alloc, "hello world", "<p>hello world</p>");
+    try doTest(parse, alloc, "*hello* world", "<p><b>hello</b> world</p>");
+    try doTest(parse, alloc, "*he_ll_o* world", "<p><b>he<em>ll</em>o</b> world</p>");
+    try doTest(parse, alloc, "(foo)", "<p>(foo)</p>");
+    try doTest(parse, alloc, "[](bar)", "<p><a href=\"bar\">bar</a></p>");
+    try doTest(parse, alloc, "[foo](bar)", "<p><a href=\"bar\">foo</a></p>");
+    try doTest(parse, alloc, "hello [foo](bar) world", "<p>hello <a href=\"bar\">foo</a> world</p>");
 
-    try doTestError(alloc, "hello *world", Error.ModifierNotClosed);
-    try doTestError(alloc, "hello *wo_rld*", Error.ModifierNotClosed);
-    try doTestError(alloc, "*hell*o *wo_rld*", Error.ModifierNotClosed);
-    try doTestError(alloc, "hello ::: world", Error.IllegalPlacement);
+    try doTestError(parse, alloc, "hello *world", Error.ModifierNotClosed);
+    try doTestError(parse, alloc, "hello *wo_rld*", Error.ModifierNotClosed);
+    try doTestError(parse, alloc, "*hell*o *wo_rld*", Error.ModifierNotClosed);
+    try doTestError(parse, alloc, "hello ::: world", Error.IllegalPlacement);
 }

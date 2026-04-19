@@ -5,6 +5,8 @@ const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
 const paragraph = @import("paragraph.zig");
 const testing = @import("testing.zig");
+const doTest = testing.do;
+const doTestError = testing.doError;
 
 pub const Error = error{InvalidTitleContent} || paragraph.Error || Lexer.Error;
 
@@ -31,24 +33,16 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     return el;
 }
 
-fn doTest(alloc: Allocator, t: []const u8, v: []const u8) !void {
-    return testing.do(parse, alloc, t, v);
-}
-
-fn doTestError(alloc: Allocator, t: []const u8, err: Error) !void {
-    return testing.doError(parse, alloc, t, err);
-}
-
 test "parse title" {
     var arena = std.heap.DebugAllocator(.{}).init;
     defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
     const alloc = arena.allocator();
 
-    try doTest(alloc, "# hey", "<h1>hey</h1>");
-    try doTest(alloc, "## hey", "<h2>hey</h2>");
-    try doTest(alloc, "### hey", "<h3>hey</h3>");
+    try doTest(parse, alloc, "# hey", "<h1>hey</h1>");
+    try doTest(parse, alloc, "## hey", "<h2>hey</h2>");
+    try doTest(parse, alloc, "### hey", "<h3>hey</h3>");
 
-    try doTest(alloc, "# hello *world*", "<h1>hello <b>world</b></h1>");
+    try doTest(parse, alloc, "# hello *world*", "<h1>hello <b>world</b></h1>");
 
-    try doTestError(alloc, "# aa :::", Error.InvalidTitleContent);
+    try doTestError(parse, alloc, "# aa :::", Error.InvalidTitleContent);
 }

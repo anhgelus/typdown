@@ -5,11 +5,12 @@ const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
 const parser = @import("parser.zig");
 const link = @import("link.zig");
+const content = @import("content.zig");
 const testing = @import("testing.zig");
 const doTest = testing.do;
 const doTestError = testing.doError;
 
-pub const Error = error{ ModifierNotClosed, IllegalPlacement, InvalidLink } || Lexer.Error;
+pub const Error = content.Error || link.Error || Lexer.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Element.init(alloc, .content, "p");
@@ -34,58 +35,24 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
 }
 
 pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
-    var content = Element.initEmpty(alloc);
-    errdefer content.deinit();
+    var line = Element.initEmpty(alloc);
+    errdefer line.deinit();
     while (l.nextKind()) |kind| {
         switch (kind) {
-            .weak_delimiter, .strong_delimiter => return content,
+            .weak_delimiter, .strong_delimiter => return line,
             .link => {
                 var el = try link.parse(alloc, l);
                 errdefer el.deinit();
-                try content.appendContent(el);
+                try line.appendContent(el);
             },
             else => {
-                var el = try parseContent(alloc, l);
+                var el = try content.parse(alloc, l);
                 errdefer el.deinit();
-                try content.appendContent(el);
+                try line.appendContent(el);
             },
         }
     }
-    return content;
-}
-
-pub fn parseContent(alloc: Allocator, l: *Lexer) Error!Element {
-    var content = Element.initEmpty(alloc);
-    errdefer content.deinit();
-    var v = (try l.next(alloc)).?;
-    defer v.deinit();
-    switch (v.kind) {
-        .literal => {
-            const el = try Element.initLitEscaped(alloc, v.content.items);
-            try content.appendContent(el);
-        },
-        .bold => try content.appendContent(try parseModifier(alloc, l, .bold, "b")),
-        .italic => try content.appendContent(try parseModifier(alloc, l, .italic, "em")),
-        .code => try content.appendContent(try parseModifier(alloc, l, .code, "code")),
-        else => return Error.IllegalPlacement,
-    }
-    return content;
-}
-
-fn parseModifier(alloc: Allocator, l: *Lexer, knd: Lexed.Kind, tag: []const u8) Error!Element {
-    var el = try Element.init(alloc, .content, tag);
-    errdefer el.deinit();
-    while (l.nextKind()) |it| {
-        if (it == knd) {
-            // consuming the finisher
-            var v = (try l.next(alloc)).?;
-            v.deinit();
-            return el;
-        }
-        if (it.isDelimiter()) return Error.ModifierNotClosed;
-        try el.appendContent(try parseContent(alloc, l));
-    }
-    return Error.ModifierNotClosed;
+    return line;
 }
 
 test "parse paragraphs" {

@@ -21,7 +21,9 @@ pub fn parse(parent: Allocator, content: []const u8) Error![]const u8 {
     var l = try Lexer.init(content);
     base: while (l.nextKind()) |it| {
         try elements.append(alloc, switch (it) {
+            // block paragraph
             .literal, .bold, .italic, .code, .link => try paragraph.parse(alloc, &l),
+            // other blocks
             .title => try title.parse(alloc, &l),
             .weak_delimiter, .strong_delimiter => {
                 var v = (try l.next(alloc)).?;

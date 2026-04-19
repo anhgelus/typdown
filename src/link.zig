@@ -4,12 +4,12 @@ const eql = std.mem.eql;
 const Lexed = @import("lexer/Lexed.zig");
 const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
-const paragraph = @import("paragraph.zig");
+const content = @import("content.zig");
 const testing = @import("testing.zig");
 const doTest = testing.do;
 const doTestError = testing.doError;
 
-pub const Error = error{InvalidLink} || Lexer.Error || paragraph.Error;
+pub const Error = error{InvalidLink} || Lexer.Error || content.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Element.init(alloc, .content, "a");
@@ -20,9 +20,9 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         return data.first.?;
     };
     defer alloc.free(second);
-    var content = if (data.first) |first| first else try Element.initLitEscaped(alloc, second);
-    errdefer content.deinit();
-    try el.appendContent(content);
+    var in = if (data.first) |first| first else try Element.initLitEscaped(alloc, second);
+    errdefer in.deinit();
+    try el.appendContent(in);
     try el.setAttribute("href", second);
     return el;
 }
@@ -53,8 +53,8 @@ pub fn parseData(alloc: Allocator, l: *Lexer) Error!Data {
                 break;
             },
             else => {
-                const content = try paragraph.parseContent(alloc, l);
-                try el.appendContent(content);
+                const in = try content.parse(alloc, l);
+                try el.appendContent(in);
             },
         }
     }

@@ -3,8 +3,7 @@
     .version = "0.0.1",
     .dependencies = .{
         .typdown = .{
-            .url = "../",
-            .hash = "typdown-0.0.0-W_41P72ZAADdFceFUk8ED63kaCObehOJxT9HpRTabF_k",
+            .path = "../",
         },
     },
     .minimum_zig_version = "0.15.2",

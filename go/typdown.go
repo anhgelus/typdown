@@ -1,6 +1,6 @@
 package typdown
 
-// #cgo LDFLAGS: -L${SRCDIR}/zig-out/lib/ -ltypdown
+// #cgo LDFLAGS: -L${SRCDIR}/zig-out/lib -ltypdown
 // #include <stdlib.h>
 // #include "typdown.h"
 import "C"

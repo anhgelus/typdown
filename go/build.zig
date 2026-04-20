@@ -24,8 +24,20 @@ pub fn build(b: *std.Build) !void {
     if (optimize != .Debug) try flags.appendSlice(b.allocator, " -s");
     const go_build = b.addSystemCommand(&[_][]const u8{
         "go", "build",
-        "-ldflags", try flags.toOwnedSlice(b.allocator),
+        "-ldflags", flags.items,
         ".",
     });
     b.getInstallStep().dependOn(&go_build.step);
+
+    const race = b.option(bool, "race", "Run tests with -race") orelse false;
+    const go_test = b.addSystemCommand(&[_][]const u8{
+        "go", "test",
+        "-ldflags", flags.items,
+        "-v",
+    });
+    if (race) go_test.addArg("-race");
+    go_test.addArg("./...");
+
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&go_test.step);
 }

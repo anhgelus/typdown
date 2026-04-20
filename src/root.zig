@@ -15,7 +15,7 @@ inline fn getErrorCode(err: Error) u8 {
 }
 
 /// Returns the static string linked with the error code.
-export fn getErrorString(code: u8) [*:0]const u8 {
+export fn typdown_getErrorString(code: u8) [*:0]const u8 {
     return switch (code) {
         1 => "out of memory",
         2 => "invalid UTF-8",
@@ -33,11 +33,11 @@ export fn getErrorString(code: u8) [*:0]const u8 {
 ///
 /// Returns a not null strings and set the code to 0 if everything is fine.
 /// Else, it returns null and set an error code above 0.
-/// Use getErrorString to retrieve the string linked with the error code.
-/// Use zigParse if you are in Zig.
-export fn parse(content: [*:0]const u8, code: *u8) ?[*:0]const u8 {
+/// Use typdown_getErrorString to retrieve the string linked with the error code.
+/// Use parse if you are in Zig.
+export fn typdown_parse(content: [*:0]const u8, code: *u8) ?[*:0]const u8 {
     const alloc = std.heap.c_allocator;
-    const res = zigParse(alloc, std.mem.span(content)) catch |err| {
+    const res = parse(alloc, std.mem.span(content)) catch |err| {
         code.* = getErrorCode(err);
         return null;
     };
@@ -52,17 +52,12 @@ export fn parse(content: [*:0]const u8, code: *u8) ?[*:0]const u8 {
 /// Parse the content.
 /// 
 /// Use parse if you are not in Zig.
-pub fn zigParse(alloc: std.mem.Allocator, content: []const u8) Error![]const u8 {
+pub fn parse(alloc: std.mem.Allocator, content: []const u8) Error![]const u8 {
     return parser.parse(alloc, content);
 }
 
-pub fn zigParseReader(alloc: std.mem.Allocator, r: *std.io.Reader) ![]const u8 {
+pub fn zigParse(alloc: std.mem.Allocator, r: *std.io.Reader) ![]const u8 {
     return parser.parseReader(alloc, r);
-}
-
-pub fn zigParseFile(alloc: std.mem.Allocator, path: []const u8) ![]const u8 {
-    const file = try std.fs.cwd().readFileAlloc(alloc, path, std.math.maxInt(usize));
-    return zigParse(alloc, file);
 }
 
 test {
@@ -73,7 +68,7 @@ fn doTest(content: [*:0]const u8, exp: []const u8, comptime exp_code: u8) !void 
     const expect = std.testing.expect;
 
     var code: u8 = undefined;
-    const raw = parse(content, &code) orelse {
+    const raw = typdown_parse(content, &code) orelse {
         expect(code == exp_code) catch |err| {
             std.debug.print("{}\n", .{code});
             return err;

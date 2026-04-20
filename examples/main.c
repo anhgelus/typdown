@@ -5,11 +5,11 @@
 
 void foo(char *v) {
     uint8_t code;
-    char *res = parse(v, &code);
+    char *res = typdown_parse(v, &code);
     if (code == 0) {
         printf("%s\n", res);
         free(res);
-    } else printf("cannot parse '%s', error: %s (%d)\n", v, getErrorString(code), code);
+    } else printf("cannot parse '%s', error: %s (%d)\n", v, typdown_getErrorString(code), code);
 }
 
 int main() {

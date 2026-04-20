@@ -31,7 +31,7 @@ var (
 func Parse(content string) (template.HTML, error) {
 	code := C.uchar(0)
 	conv := C.CString(content)
-	raw := C.parse(conv, &code)
+	raw := C.typdown_parse(conv, &code)
 	defer C.free(unsafe.Pointer(conv))
 	if code > 0 {
 		err := codeErrors[uint8(code)]

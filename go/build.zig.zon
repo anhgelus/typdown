@@ -1,0 +1,13 @@
+.{
+    .name = .go,
+    .version = "0.0.1",
+    .dependencies = .{
+        .typdown = .{
+            .url = "../",
+            .hash = "typdown-0.0.0-W_41P72ZAADdFceFUk8ED63kaCObehOJxT9HpRTabF_k",
+        },
+    },
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0xb6689356e0fb1477,
+}

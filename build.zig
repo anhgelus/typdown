@@ -33,6 +33,8 @@ pub fn build(b: *std.Build) void {
     example.root_module.linkLibrary(lib);
     example.root_module.addIncludePath(b.path("include"));
 
+    b.getInstallStep().dependOn(&installed_lib.step);
+
     const mod_tests = b.addTest(.{
         .root_module = mod,
     });

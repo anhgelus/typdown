@@ -25,7 +25,7 @@ pub fn build(b: *std.Build) !void {
     try flags.appendSlice(b.allocator, "-linkmode external -extldflags -static");
     if (optimize != .Debug) try flags.appendSlice(b.allocator, " -s");
     const go_build = b.addSystemCommand(&[_][]const u8{
-        "go", "build",
+        "go",       "build",
         "-ldflags", flags.items,
         ".",
     });
@@ -35,7 +35,7 @@ pub fn build(b: *std.Build) !void {
     test_step.dependOn(b.getInstallStep());
     const race = b.option(bool, "race", "Run tests with -race") orelse false;
     const go_test = b.addSystemCommand(&[_][]const u8{
-        "go", "test",
+        "go",       "test",
         "-ldflags", flags.items,
         "-v",
     });

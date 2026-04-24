@@ -2,8 +2,9 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const eql = std.mem.eql;
 const unicode = std.unicode;
-const Lexed = @import("Lexed.zig");
+const Token = @import("Token.zig");
 
+content: []const u8,
 iter: unicode.Utf8Iterator,
 force_lit: bool = false,
 
@@ -11,11 +12,11 @@ const Self = @This();
 
 pub const Error = error{
     InvalidUtf8,
-} || Allocator.Error;
+};
 
 pub fn init(content: []const u8) error{InvalidUtf8}!Self {
     const view = try unicode.Utf8View.init(content);
-    return .{ .iter = view.iterator() };
+    return .{ .content = content, .iter = view.iterator() };
 }
 
 // Must free bytes in iter.
@@ -25,17 +26,16 @@ pub fn initReader(alloc: Allocator, r: *std.io.Reader) !Self {
     return init(try acc.toOwnedSlice(alloc));
 }
 
-pub fn nextKind(self: *Self) ?Lexed.Kind {
+pub fn nextKind(self: *Self) ?Token.Kind {
     const next_rune = self.iter.peek(1);
     if (next_rune.len == 0) return null;
     return self.getCurrentKind(null, next_rune, &[0]u8{}).kind;
 }
 
-pub fn next(self: *Self, alloc: Allocator) Error!?Lexed {
-    var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
-    errdefer acc.deinit(alloc);
-
-    var current_kind: ?Lexed.Kind = null;
+pub fn next(self: *Self) ?Token {
+    const beg = self.iter.i;
+    var end = self.iter.i;
+    var current_kind: ?Token.Kind = null;
     while (self.iter.nextCodepointSlice()) |rune| {
         if (eql(u8, rune, "\r")) continue;
         var override_if: ?[]const u8 = null;
@@ -45,14 +45,14 @@ pub fn next(self: *Self, alloc: Allocator) Error!?Lexed {
             current_kind = .literal;
         } else {
             self.force_lit = false;
-            const res = self.getCurrentKind(current_kind, rune, acc.items);
+            const res = self.getCurrentKind(current_kind, rune, self.content[beg..end]);
             current_kind = res.kind;
             override_if = res.override_if;
-            try acc.appendSlice(alloc, rune);
+            end = self.iter.i;
         }
         // conds here to avoid creating complex condition in while
         const next_rune = self.iter.peek(1);
-        const next_kind = self.getCurrentKind(current_kind, next_rune, acc.items).kind;
+        const next_kind = self.getCurrentKind(current_kind, next_rune, self.content[beg..end]).kind;
         if (requiresSpace(current_kind.?) and next_kind != current_kind.?) {
             if (eql(u8, next_rune, " ")) {
                 // consume next space
@@ -60,7 +60,7 @@ pub fn next(self: *Self, alloc: Allocator) Error!?Lexed {
                 break;
             }
             current_kind = switch (current_kind.?) {
-                .title => if (acc.items.len == 1) .tag else .literal,
+                .title => if (end - beg == 1) .tag else .literal,
                 else => .literal,
             };
         }
@@ -69,15 +69,12 @@ pub fn next(self: *Self, alloc: Allocator) Error!?Lexed {
             (override_if == null or !eql(u8, override_if.?, next_rune)))
             break;
     }
-    const kind = current_kind orelse {
-        acc.deinit(alloc);
-        return null;
-    };
-    return .init(alloc, kind, acc);
+    const kind = current_kind orelse return null;
+    return .{ .kind = kind, .content = self.content[beg..end] };
 }
 
 const kindRes = struct {
-    kind: Lexed.Kind,
+    kind: Token.Kind,
     override_if: ?[]const u8 = null,
 
     fn equals(self: @This(), v: @This()) bool {
@@ -89,11 +86,11 @@ const kindRes = struct {
     }
 };
 
-fn requiresDelimiter(before: ?Lexed.Kind, knd: Lexed.Kind) Lexed.Kind {
+fn requiresDelimiter(before: ?Token.Kind, knd: Token.Kind) Token.Kind {
     return if (before == null or before.?.isDelimiter() or before.? == knd) knd else .literal;
 }
 
-fn getCurrentKind(self: *Self, before: ?Lexed.Kind, rune: []const u8, acc: []const u8) kindRes {
+fn getCurrentKind(self: *Self, before: ?Token.Kind, rune: []const u8, acc: []const u8) kindRes {
     if (self.force_lit) return .{ .kind = .literal };
     if (eql(u8, rune, "\n")) return .{
         .kind = if (before == .weak_delimiter) .strong_delimiter else .weak_delimiter,
@@ -122,7 +119,7 @@ fn is(v: u8, maxLen: usize, rune: []const u8, acc: []const u8) bool {
 
 const links = &[_][]const u8{ "[", "](", ")" };
 
-fn isIn(ops: []const []const u8, rune: []const u8, p: []const u8, before: ?Lexed.Kind, now: Lexed.Kind) bool {
+fn isIn(ops: []const []const u8, rune: []const u8, p: []const u8, before: ?Token.Kind, now: Token.Kind) bool {
     var acc = p;
     if (before) |b| {
         if (now != b) acc = &[_]u8{};
@@ -135,7 +132,7 @@ fn isIn(ops: []const []const u8, rune: []const u8, p: []const u8, before: ?Lexed
     return false;
 }
 
-fn isOneOrThree(op: []const u8, rune: []const u8, p: []const u8, one: Lexed.Kind, three: Lexed.Kind) ?kindRes {
+fn isOneOrThree(op: []const u8, rune: []const u8, p: []const u8, one: Token.Kind, three: Token.Kind) ?kindRes {
     if (!eql(u8, rune, op)) return null;
     var acc = p;
     if (acc.len < op.len or !eql(u8, acc[0..op.len], op)) acc = &[_]u8{};
@@ -160,18 +157,17 @@ fn isOneOrThree(op: []const u8, rune: []const u8, p: []const u8, one: Lexed.Kind
     };
 }
 
-fn requiresSpace(k: Lexed.Kind) bool {
+fn requiresSpace(k: Token.Kind) bool {
     return switch (k) {
         .title, .list_ordored, .list_unordored => true,
         else => false,
     };
 }
 
-fn doTest(alloc: Allocator, l: *Self, k: Lexed.Kind, v: []const u8) !void {
-    var first = (try l.next(alloc)).?;
-    defer first.deinit();
+fn doTest(l: *Self, k: Token.Kind, v: []const u8) !void {
+    var first = l.next().?;
     std.testing.expect(first.equals(k, v)) catch |err| {
-        std.debug.print("{}({s})\n", .{ first.kind, first.content.items });
+        std.debug.print("{}({s})\n", .{ first.kind, first.content });
         return err;
     };
 }
@@ -208,29 +204,17 @@ test "is" {
 }
 
 test "lexer common" {
-    const expect = std.testing.expect;
-
-    var arena = std.heap.DebugAllocator(.{}).init;
-    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
-    const alloc = arena.allocator();
-
     var l = try init("## hello world :)");
 
-    try doTest(alloc, &l, .title, "##");
-    try doTest(alloc, &l, .literal, "hello world ");
-    try doTest(alloc, &l, .ref, ":");
-    try doTest(alloc, &l, .link, ")");
+    try doTest(&l, .title, "##");
+    try doTest(&l, .literal, "hello world ");
+    try doTest(&l, .ref, ":");
+    try doTest(&l, .link, ")");
 
-    try expect(try l.next(alloc) == null);
+    try std.testing.expect(l.next() == null);
 }
 
 test "lexer multiline" {
-    const expect = std.testing.expect;
-
-    var arena = std.heap.DebugAllocator(.{}).init;
-    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
-    const alloc = arena.allocator();
-
     var l = try init(
         \\# Title
         \\
@@ -242,21 +226,21 @@ test "lexer multiline" {
         \\#tag2
     );
 
-    try doTest(alloc, &l, .title, "#");
-    try doTest(alloc, &l, .literal, "Title");
-    try doTest(alloc, &l, .strong_delimiter, "\n\n");
-    try doTest(alloc, &l, .literal, "paragraph");
-    try doTest(alloc, &l, .weak_delimiter, "\n");
-    try doTest(alloc, &l, .title, "#");
-    try doTest(alloc, &l, .literal, "a title");
-    try doTest(alloc, &l, .weak_delimiter, "\n");
-    try doTest(alloc, &l, .literal, "a # in sentence");
-    try doTest(alloc, &l, .strong_delimiter, "\n\n");
-    try doTest(alloc, &l, .tag, "#");
-    try doTest(alloc, &l, .literal, "tag");
-    try doTest(alloc, &l, .weak_delimiter, "\n");
-    try doTest(alloc, &l, .tag, "#");
-    try doTest(alloc, &l, .literal, "tag2");
+    try doTest(&l, .title, "#");
+    try doTest(&l, .literal, "Title");
+    try doTest(&l, .strong_delimiter, "\n\n");
+    try doTest(&l, .literal, "paragraph");
+    try doTest(&l, .weak_delimiter, "\n");
+    try doTest(&l, .title, "#");
+    try doTest(&l, .literal, "a title");
+    try doTest(&l, .weak_delimiter, "\n");
+    try doTest(&l, .literal, "a # in sentence");
+    try doTest(&l, .strong_delimiter, "\n\n");
+    try doTest(&l, .tag, "#");
+    try doTest(&l, .literal, "tag");
+    try doTest(&l, .weak_delimiter, "\n");
+    try doTest(&l, .tag, "#");
+    try doTest(&l, .literal, "tag2");
 
-    try expect(try l.next(alloc) == null);
+    try std.testing.expect(l.next() == null);
 }

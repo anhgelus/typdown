@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Lexed = @import("lexer/Lexed.zig");
+const Token = @import("lexer/Token.zig");
 const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
 const parser = @import("parser.zig");
@@ -10,7 +10,7 @@ const testing = @import("testing.zig");
 const doTest = testing.do;
 const doTestError = testing.doError;
 
-pub const Error = content.Error || link.Error || Lexer.Error;
+pub const Error = content.Error || link.Error || Lexer.Error || Allocator.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Element.init(alloc, .content, "p");
@@ -19,8 +19,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         switch (kind) {
             // because nextKind returns only an hint for the next rune
             .weak_delimiter => {
-                var v = (try l.next(alloc)).?;
-                defer v.deinit();
+                const v = l.next().?;
                 if (v.kind == .strong_delimiter) return el;
                 const next = l.nextKind() orelse return el;
                 switch (next) {

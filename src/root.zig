@@ -50,7 +50,7 @@ export fn typdown_parse(content: [*:0]const u8, code: *u8) ?[*:0]const u8 {
 }
 
 /// Parse the content.
-/// 
+///
 /// Use parse if you are not in Zig.
 pub fn parse(alloc: std.mem.Allocator, content: []const u8) Error![]const u8 {
     return parser.parse(alloc, content);

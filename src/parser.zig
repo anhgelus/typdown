@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Lexed = @import("lexer/Lexed.zig");
+const Token = @import("lexer/Token.zig");
 const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
 const paragraph = @import("paragraph.zig");
@@ -9,7 +9,7 @@ const link = @import("link.zig");
 
 pub const Error = error{
     FeatureNotSupported,
-} || Lexer.Error || paragraph.Error || title.Error || link.Error;
+} || Lexer.Error || paragraph.Error || title.Error || link.Error || Allocator.Error;
 
 pub fn parseReader(parent: Allocator, r: *std.io.Reader) ![]const u8 {
     var l = try Lexer.initReader(parent, r);
@@ -29,16 +29,15 @@ fn gen(parent: Allocator, l: *Lexer) Error![]const u8 {
 
     var elements = try std.ArrayList(Element).initCapacity(alloc, 2);
 
-    base: while (l.nextKind()) |it| {
+    while (l.nextKind()) |it| {
         try elements.append(alloc, switch (it) {
             // block paragraph
             .literal, .bold, .italic, .code, .link => try paragraph.parse(alloc, l),
             // other blocks
             .title => try title.parse(alloc, l),
             .weak_delimiter, .strong_delimiter => {
-                var v = (try l.next(alloc)).?;
-                v.deinit();
-                continue :base;
+                _ = l.next();
+                continue;
             },
             else => return Error.FeatureNotSupported,
         });

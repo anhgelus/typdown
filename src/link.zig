@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const eql = std.mem.eql;
-const Lexed = @import("lexer/Lexed.zig");
+const Token = @import("lexer/Token.zig");
 const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("dom/Element.zig");
 const content = @import("content.zig");
@@ -9,12 +9,11 @@ const testing = @import("testing.zig");
 const doTest = testing.do;
 const doTestError = testing.doError;
 
-pub const Error = error{InvalidLink} || Lexer.Error || content.Error;
+pub const Error = error{InvalidLink} || Lexer.Error || content.Error || Allocator.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     const data = try parseData(alloc, l);
     const second = data.second orelse return data.first.?;
-    defer alloc.free(second);
     var in = if (data.first) |first| first else try Element.initLitEscaped(alloc, second);
     errdefer in.deinit();
     var el = try Element.init(alloc, .content, "a");
@@ -30,11 +29,10 @@ pub const Data = struct {
 };
 
 pub fn parseData(alloc: Allocator, l: *Lexer) Error!Data {
-    var v = (try l.next(alloc)).?;
-    defer v.deinit();
+    const v = l.next().?;
     if (v.kind != .link) return Error.InvalidLink;
-    if (!eql(u8, v.content.items, "[")) {
-        const el = try Element.initLitEscaped(alloc, v.content.items);
+    if (!eql(u8, v.content, "[")) {
+        const el = try Element.initLitEscaped(alloc, v.content);
         return .{ .first = el, .second = null };
     }
     var el = Element.initEmpty(alloc);
@@ -43,9 +41,8 @@ pub fn parseData(alloc: Allocator, l: *Lexer) Error!Data {
         switch (kind) {
             .weak_delimiter, .strong_delimiter => return Error.InvalidLink,
             .link => {
-                var next = (try l.next(alloc)).?;
-                defer next.deinit();
-                if (!eql(u8, next.content.items, "](")) return Error.InvalidLink;
+                const next = l.next().?;
+                if (!eql(u8, next.content, "](")) return Error.InvalidLink;
                 break;
             },
             else => {
@@ -54,15 +51,13 @@ pub fn parseData(alloc: Allocator, l: *Lexer) Error!Data {
             },
         }
     }
-    var href = try l.next(alloc) orelse return Error.InvalidLink;
-    defer href.deinit();
+    const href = l.next() orelse return Error.InvalidLink;
     if (href.kind != .literal) return Error.InvalidLink;
-    var finisher = try l.next(alloc) orelse return Error.InvalidLink;
-    defer finisher.deinit();
-    if (finisher.kind != .link or !eql(u8, finisher.content.items, ")")) return Error.InvalidLink;
+    const finisher = l.next() orelse return Error.InvalidLink;
+    if (!finisher.equals(.link, ")")) return Error.InvalidLink;
     return .{
         .first = if (el.content.items.len > 0) el else null,
-        .second = try href.content.toOwnedSlice(alloc),
+        .second = href.content,
     };
 }
 

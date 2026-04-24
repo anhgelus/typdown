@@ -15,14 +15,14 @@ pub const Error = content.Error || link.Error || Lexer.Error || Allocator.Error;
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Element.init(alloc, .content, "p");
     errdefer el.deinit();
-    while (l.nextKind()) |kind| {
-        switch (kind) {
+    while (l.peek()) |next| {
+        switch (next.kind) {
             // because nextKind returns only an hint for the next rune
+            .strong_delimiter => return el,
             .weak_delimiter => {
-                const v = l.next().?;
-                if (v.kind == .strong_delimiter) return el;
-                const next = l.nextKind() orelse return el;
-                switch (next) {
+                l.consume();
+                const future = l.peek() orelse return el;
+                switch (future.kind) {
                     .literal, .italic, .code, .bold, .link => try el.appendContent(try Element.initLit(alloc, " ")),
                     else => return el,
                 }
@@ -36,8 +36,8 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
 pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
     var line = Element.initEmpty(alloc);
     errdefer line.deinit();
-    while (l.nextKind()) |kind| {
-        switch (kind) {
+    while (l.peek()) |next| {
+        switch (next.kind) {
             .weak_delimiter, .strong_delimiter => return line,
             .link => {
                 var el = try link.parse(alloc, l);

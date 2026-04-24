@@ -7,6 +7,7 @@ const Token = @import("Token.zig");
 content: []const u8,
 iter: unicode.Utf8Iterator,
 force_lit: bool = false,
+before: ?Token = null,
 
 const Self = @This();
 
@@ -26,13 +27,11 @@ pub fn initReader(alloc: Allocator, r: *std.io.Reader) !Self {
     return init(try acc.toOwnedSlice(alloc));
 }
 
-pub fn nextKind(self: *Self) ?Token.Kind {
-    const next_rune = self.iter.peek(1);
-    if (next_rune.len == 0) return null;
-    return self.getCurrentKind(null, next_rune, &[0]u8{}).kind;
-}
-
 pub fn next(self: *Self) ?Token {
+    if (self.before) |it| {
+        self.consume();
+        return it;
+    }
     const beg = self.iter.i;
     var end = self.iter.i;
     var current_kind: ?Token.Kind = null;
@@ -69,8 +68,16 @@ pub fn next(self: *Self) ?Token {
             (override_if == null or !eql(u8, override_if.?, next_rune)))
             break;
     }
-    const kind = current_kind orelse return null;
-    return .{ .kind = kind, .content = self.content[beg..end] };
+    return .{ .kind = current_kind orelse return null, .content = self.content[beg..end] };
+}
+
+pub fn peek(self: *Self) ?Token {
+    self.before = self.next();
+    return self.before;
+}
+
+pub fn consume(self: *Self) void {
+    self.before = null;
 }
 
 const kindRes = struct {
@@ -243,4 +250,21 @@ test "lexer multiline" {
     try doTest(&l, .literal, "tag2");
 
     try std.testing.expect(l.next() == null);
+}
+
+test "peek and consume" {
+    const expect = std.testing.expect;
+
+    var l = try init("hello *world*");
+
+    try expect(l.peek().?.equals(.literal, "hello "));
+    try expect(l.peek().?.equals(.literal, "hello "));
+    l.consume();
+    try expect(l.peek().?.equals(.bold, "*"));
+    try expect(l.peek().?.equals(.bold, "*"));
+    l.consume();
+    try expect(l.next().?.equals(.literal, "world"));
+    try expect(l.peek().?.equals(.bold, "*"));
+    try expect(l.next().?.equals(.bold, "*"));
+    try expect(l.next() == null);
 }

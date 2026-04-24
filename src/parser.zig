@@ -29,15 +29,15 @@ fn gen(parent: Allocator, l: *Lexer) Error![]const u8 {
 
     var elements = try std.ArrayList(Element).initCapacity(alloc, 2);
 
-    while (l.nextKind()) |it| {
-        try elements.append(alloc, switch (it) {
+    base: while (l.peek()) |it| {
+        try elements.append(alloc, switch (it.kind) {
             // block paragraph
             .literal, .bold, .italic, .code, .link => try paragraph.parse(alloc, l),
             // other blocks
             .title => try title.parse(alloc, l),
             .weak_delimiter, .strong_delimiter => {
-                _ = l.next();
-                continue;
+                l.consume();
+                continue :base;
             },
             else => return Error.FeatureNotSupported,
         });

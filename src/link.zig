@@ -37,11 +37,11 @@ pub fn parseData(alloc: Allocator, l: *Lexer) Error!Data {
     }
     var el = Element.initEmpty(alloc);
     errdefer el.deinit();
-    while (l.nextKind()) |kind| {
-        switch (kind) {
+    while (l.peek()) |next| {
+        switch (next.kind) {
             .weak_delimiter, .strong_delimiter => return Error.InvalidLink,
             .link => {
-                const next = l.next().?;
+                l.consume();
                 if (!eql(u8, next.content, "](")) return Error.InvalidLink;
                 break;
             },

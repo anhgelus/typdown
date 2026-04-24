@@ -31,13 +31,13 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
 fn parseModifier(alloc: Allocator, l: *Lexer, knd: Token.Kind, tag: []const u8) Error!Element {
     var el = try Element.init(alloc, .content, tag);
     errdefer el.deinit();
-    while (l.nextKind()) |it| {
-        if (it == knd) {
+    while (l.peek()) |next| {
+        if (next.kind == knd) {
             // consuming the finisher
-            _ = l.next();
+            l.consume();
             return el;
         }
-        if (it.isDelimiter()) return Error.ModifierNotClosed;
+        if (next.kind.isDelimiter()) return Error.ModifierNotClosed;
         try el.appendContent(try parse(alloc, l));
     }
     return Error.ModifierNotClosed;

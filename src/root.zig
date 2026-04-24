@@ -56,7 +56,7 @@ pub fn parse(alloc: std.mem.Allocator, content: []const u8) Error![]const u8 {
     return parser.parse(alloc, content);
 }
 
-pub fn zigParse(alloc: std.mem.Allocator, r: *std.io.Reader) ![]const u8 {
+pub fn parseReader(alloc: std.mem.Allocator, r: *std.io.Reader) (Error || std.io.Reader.Error)![]const u8 {
     return parser.parseReader(alloc, r);
 }
 

@@ -8,6 +8,7 @@ content: []const u8,
 iter: unicode.Utf8Iterator,
 force_lit: bool = false,
 before: ?Token = null,
+new_line: bool = true,
 
 const Self = @This();
 
@@ -49,6 +50,7 @@ pub fn next(self: *Self) ?Token {
             override_if = res.override_if;
             end = self.iter.i;
         }
+        self.new_line = current_kind.?.isDelimiter();
         // conds here to avoid creating complex condition in while
         const next_rune = self.iter.peek(1);
         const next_kind = self.getCurrentKind(current_kind, next_rune, self.content[beg..end]).kind;
@@ -93,8 +95,8 @@ const kindRes = struct {
     }
 };
 
-fn requiresDelimiter(before: ?Token.Kind, knd: Token.Kind) Token.Kind {
-    return if (before == null or before.?.isDelimiter() or before.? == knd) knd else .literal;
+fn requiresDelimiter(self: *Self, before: ?Token.Kind, knd: Token.Kind) Token.Kind {
+    return if (self.new_line or (before != null and before.? == knd)) knd else .literal;
 }
 
 fn getCurrentKind(self: *Self, before: ?Token.Kind, rune: []const u8, acc: []const u8) kindRes {
@@ -105,12 +107,12 @@ fn getCurrentKind(self: *Self, before: ?Token.Kind, rune: []const u8, acc: []con
     };
     if (eql(u8, rune, "*")) return .{ .kind = .bold };
     if (eql(u8, rune, "_")) return .{ .kind = .italic };
-    if (eql(u8, rune, ">")) return .{ .kind = requiresDelimiter(before, .quote) };
-    if (eql(u8, rune, ".")) return .{ .kind = requiresDelimiter(before, .list_ordored) };
-    if (eql(u8, rune, "-")) return .{ .kind = requiresDelimiter(before, .list_unordored) };
-    if (eql(u8, rune, "!")) return .{ .kind = requiresDelimiter(before, .image) };
+    if (eql(u8, rune, ">")) return .{ .kind = self.requiresDelimiter(before, .quote) };
+    if (eql(u8, rune, ".")) return .{ .kind = self.requiresDelimiter(before, .list_ordored) };
+    if (eql(u8, rune, "-")) return .{ .kind = self.requiresDelimiter(before, .list_unordored) };
+    if (eql(u8, rune, "!")) return .{ .kind = self.requiresDelimiter(before, .image) };
     if (eql(u8, rune, "<")) return .{ .kind = .ref };
-    if (is('#', 6, rune, acc)) return .{ .kind = requiresDelimiter(before, .title) };
+    if (is('#', 6, rune, acc)) return .{ .kind = self.requiresDelimiter(before, .title) };
     if (isIn(links, rune, acc, before, .link)) return .{ .kind = .link };
     if (isOneOrThree(":", rune, acc, .ref, .callout)) |it| return it;
     if (isOneOrThree("$", rune, acc, .math, .math_block)) |it| return it;

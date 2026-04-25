@@ -99,7 +99,7 @@ test "multiple render doc" {
     defer arena.deinit();
     const alloc = arena.allocator();
 
-    const g = try parse(alloc, "hello *world*");
+    const g = try parse(alloc, "hello *world*!");
     const a = try g.renderHTML(alloc);
     const b = try g.renderHTML(alloc);
     try std.testing.expect(std.mem.eql(u8, a, b));

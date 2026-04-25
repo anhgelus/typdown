@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const parser = @import("parser.zig");
 pub const Error = parser.Error;
 
@@ -28,6 +29,14 @@ export fn typdown_getErrorString(code: u8) [*:0]const u8 {
     };
 }
 
+var default_alloc: std.mem.Allocator =
+    if (builtin.target.isWasiLibC())
+        std.heap.wasm_allocator
+    else if (builtin.is_test)
+        std.testing.allocator
+    else
+        std.heap.c_allocator;
+
 /// Parse the content.
 /// Code is a pointer to an u8 populated with an error code > 0.
 ///
@@ -36,14 +45,13 @@ export fn typdown_getErrorString(code: u8) [*:0]const u8 {
 /// Use typdown_getErrorString to retrieve the string linked with the error code.
 /// Use parse if you are in Zig.
 export fn typdown_parse(content: [*:0]const u8, code: *u8) ?[*:0]const u8 {
-    const alloc = std.heap.c_allocator;
-    const res = parse(alloc, std.mem.span(content)) catch |err| {
+    const res = parse(default_alloc, std.mem.span(content)) catch |err| {
         code.* = getErrorCode(err);
         return null;
     };
-    defer alloc.free(res);
+    defer default_alloc.free(res);
     code.* = 0;
-    return alloc.dupeZ(u8, res) catch |err| {
+    return default_alloc.dupeZ(u8, res) catch |err| {
         code.* = getErrorCode(err);
         return null;
     };
@@ -76,7 +84,7 @@ fn doTest(content: [*:0]const u8, exp: []const u8, comptime exp_code: u8) !void 
         return;
     };
     const res = std.mem.span(raw);
-    defer std.heap.c_allocator.free(res);
+    defer std.testing.allocator.free(res);
 
     expect(code == 0) catch |err| {
         std.debug.print("{}\n", .{code});

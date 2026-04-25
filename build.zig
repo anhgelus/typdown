@@ -8,8 +8,8 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
-        .link_libc = true,
     });
+    if (!target.result.isWasiLibC()) mod.link_libc = true;
     const lib = b.addLibrary(.{
         .name = "typdown",
         .linkage = .dynamic,
@@ -22,9 +22,9 @@ pub fn build(b: *std.Build) void {
     const example = b.addExecutable(.{
         .name = "example",
         .root_module = b.createModule(.{
-            .link_libc = true,
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
         }),
     });
     example.root_module.addCSourceFile(.{

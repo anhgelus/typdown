@@ -9,7 +9,6 @@ pub const Bold = Element.Simple("b");
 pub const Italic = Element.Simple("em");
 pub const Code = Element.Simple("code");
 
-
 pub const Link = struct {
     link: []const u8,
     content: Element,

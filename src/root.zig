@@ -1,6 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const Allocator = std.mem.Allocator;
 const parser = @import("parser.zig");
+pub const Document = parser.Document;
 pub const Error = parser.Error;
 
 inline fn getErrorCode(err: Error) u8 {
@@ -45,7 +47,12 @@ var default_alloc: std.mem.Allocator =
 /// Use typdown_getErrorString to retrieve the string linked with the error code.
 /// Use parse if you are in Zig.
 export fn typdown_parse(content: [*:0]const u8, code: *u8) ?[*:0]const u8 {
-    const res = parse(default_alloc, std.mem.span(content)) catch |err| {
+    const doc = parse(default_alloc, std.mem.span(content)) catch |err| {
+        code.* = getErrorCode(err);
+        return null;
+    };
+    defer doc.deinit();
+    const res = doc.renderHTML(default_alloc) catch |err| {
         code.* = getErrorCode(err);
         return null;
     };
@@ -60,11 +67,11 @@ export fn typdown_parse(content: [*:0]const u8, code: *u8) ?[*:0]const u8 {
 /// Parse the content.
 ///
 /// Use parse if you are not in Zig.
-pub fn parse(alloc: std.mem.Allocator, content: []const u8) Error![]const u8 {
+pub fn parse(alloc: std.mem.Allocator, content: []const u8) Error!Document {
     return parser.parse(alloc, content);
 }
 
-pub fn parseReader(alloc: std.mem.Allocator, r: *std.io.Reader) (Error || std.io.Reader.Error)![]const u8 {
+pub fn parseReader(alloc: std.mem.Allocator, r: *std.io.Reader) (Error || std.io.Reader.Error)!Document {
     return parser.parseReader(alloc, r);
 }
 

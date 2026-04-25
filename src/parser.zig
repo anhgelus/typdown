@@ -11,24 +11,43 @@ pub const Error = error{
     FeatureNotSupported,
 } || Lexer.Error || paragraph.Error || title.Error || link.Error || Allocator.Error;
 
-pub fn parseReader(parent: Allocator, r: *std.io.Reader) ![]const u8 {
+pub const Document = struct {
+    arena: std.heap.ArenaAllocator,
+    root: []Element,
+
+    pub fn renderHTML(self: @This(), alloc: Allocator) Element.HTML.Error![]const u8 {
+        var content = try std.ArrayList(u8).initCapacity(alloc, self.root.len * 6);
+        errdefer content.deinit(alloc);
+        for (self.root) |it| {
+            const v = try it.renderHTML(alloc);
+            defer alloc.free(v);
+            try content.appendSlice(alloc, v);
+        }
+        return content.toOwnedSlice(alloc);
+    }
+
+    pub fn deinit(self: @This()) void {
+        self.arena.deinit();
+    }
+};
+
+pub fn parseReader(parent: Allocator, r: *std.io.Reader) !Document {
     var l = try Lexer.initReader(parent, r);
     defer parent.free(l.iter.bytes);
     return gen(parent, &l);
 }
 
-pub fn parse(parent: Allocator, content: []const u8) Error![]const u8 {
+pub fn parse(parent: Allocator, content: []const u8) Error!Document {
     var l = try Lexer.init(content);
     return gen(parent, &l);
 }
 
-fn gen(parent: Allocator, l: *Lexer) Error![]const u8 {
+fn gen(parent: Allocator, l: *Lexer) Error!Document {
     var arena = std.heap.ArenaAllocator.init(parent);
-    defer arena.deinit();
     const alloc = arena.allocator();
+    errdefer arena.deinit();
 
     var elements = try std.ArrayList(Element).initCapacity(alloc, 2);
-
     base: while (l.peek()) |it| {
         try elements.append(alloc, switch (it.kind) {
             // block paragraph
@@ -42,20 +61,16 @@ fn gen(parent: Allocator, l: *Lexer) Error![]const u8 {
             else => return Error.FeatureNotSupported,
         });
     }
-
-    var res = try std.ArrayList(u8).initCapacity(parent, elements.items.len);
-    errdefer res.deinit(parent);
-    for (elements.items) |it| {
-        try res.appendSlice(parent, try it.renderHTML(alloc));
-    }
-    return res.toOwnedSlice(parent);
+    return .{ .root = try elements.toOwnedSlice(alloc), .arena = arena };
 }
 
 fn doTest(alloc: Allocator, t: []const u8, v: []const u8) !void {
     const g = try parse(alloc, t);
-    defer alloc.free(g);
-    std.testing.expect(std.mem.eql(u8, g, v)) catch |err| {
-        std.debug.print("{s}\n", .{g});
+    defer g.deinit();
+    const res = try g.renderHTML(alloc);
+    defer alloc.free(res);
+    std.testing.expect(std.mem.eql(u8, res, v)) catch |err| {
+        std.debug.print("{s}\n", .{res});
         return err;
     };
 }
@@ -77,4 +92,15 @@ test "parse multilines" {
         \\## subtitle
         \\hehe
     , "<h1>title</h1><p>hello world ;3</p><h2>subtitle</h2><p>hehe</p>");
+}
+
+test "multiple render doc" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const alloc = arena.allocator();
+
+    const g = try parse(alloc, "hello *world*");
+    const a = try g.renderHTML(alloc);
+    const b = try g.renderHTML(alloc);
+    try std.testing.expect(std.mem.eql(u8, a, b));
 }

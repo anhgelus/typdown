@@ -38,7 +38,7 @@ fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
         5 => "h5",
         6 => "h6",
         else => unreachable,
-        });
+    });
     errdefer el.deinit();
     try el.appendContent(try self.content.html(alloc));
     return el;

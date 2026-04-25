@@ -56,6 +56,7 @@ fn gen(parent: Allocator, l: *Lexer) Error!Document {
             // other blocks
             .title => try title.parse(alloc, l),
             .list_ordored => try list.parseOrdored(alloc, l),
+            .list_unordored => try list.parseUnordored(alloc, l),
             .weak_delimiter, .strong_delimiter => {
                 l.consume();
                 continue :base;

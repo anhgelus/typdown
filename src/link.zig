@@ -62,9 +62,7 @@ pub fn parseData(alloc: Allocator, l: *Lexer) Error!Data {
 }
 
 test "parse links" {
-    var arena = std.heap.DebugAllocator(.{}).init;
-    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
-    const alloc = arena.allocator();
+    const alloc = std.testing.allocator;
 
     try doTest(parse, alloc, "[](bar)", "<a href=\"bar\">bar</a>");
     try doTest(parse, alloc, "[foo](bar)", "<a href=\"bar\">foo</a>");

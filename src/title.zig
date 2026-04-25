@@ -32,9 +32,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
 }
 
 test "parse title" {
-    var arena = std.heap.DebugAllocator(.{}).init;
-    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
-    const alloc = arena.allocator();
+    const alloc = std.testing.allocator;
 
     try doTest(parse, alloc, "# hey", "<h1>hey</h1>");
     try doTest(parse, alloc, "## hey", "<h2>hey</h2>");

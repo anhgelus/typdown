@@ -55,9 +55,7 @@ pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
 }
 
 test "parse paragraphs" {
-    var arena = std.heap.DebugAllocator(.{}).init;
-    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
-    const alloc = arena.allocator();
+    const alloc = std.testing.allocator;
 
     try doTest(parse, alloc, "hello world", "<p>hello world</p>");
     try doTest(parse, alloc, "*hello* world", "<p><b>hello</b> world</p>");

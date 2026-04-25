@@ -206,9 +206,7 @@ fn doTest(alloc: Allocator, el: *Self, exp: []const u8) !void {
 }
 
 test "void element" {
-    var arena = std.heap.DebugAllocator(.{}).init;
-    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
-    const alloc = arena.allocator();
+    const alloc = std.testing.allocator;
 
     var br = try init(alloc, .void, "br");
     defer br.deinit();
@@ -228,9 +226,7 @@ test "void element" {
 }
 
 test "content element" {
-    var arena = std.heap.DebugAllocator(.{}).init;
-    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
-    const alloc = arena.allocator();
+    const alloc = std.testing.allocator;
 
     var p = try init(alloc, .content, "p");
     defer p.deinit();

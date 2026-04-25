@@ -62,9 +62,7 @@ fn doTest(alloc: Allocator, t: []const u8, v: []const u8) !void {
 }
 
 test "parse multilines" {
-    var arena = std.heap.DebugAllocator(.{}).init;
-    defer if (arena.deinit() == .leak) std.debug.print("leaking!\n", .{});
-    const alloc = arena.allocator();
+    const alloc = std.testing.allocator;
 
     try doTest(alloc,
         \\hello

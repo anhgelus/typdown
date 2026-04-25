@@ -1,0 +1,136 @@
+const std = @import("std");
+const Allocator = std.mem.Allocator;
+pub const HTML = @import("html/Element.zig");
+pub const Paragraph = struct {
+    const paragraph = @import("paragraph.zig");
+    pub const Block = paragraph.Block;
+    pub const Bold = paragraph.Bold;
+    pub const Code = paragraph.Code;
+    pub const Italic = paragraph.Italic;
+    pub const Link = paragraph.Link;
+};
+pub const Title = @import("Title.zig");
+
+const Element = @This();
+
+vtable: struct {
+    deinit: *const fn (*anyopaque, Allocator) void,
+    html: *const fn (*anyopaque, Allocator) HTML.Error!HTML,
+},
+ptr: *anyopaque,
+
+pub fn renderHTML(self: Element, alloc: Allocator) HTML.Error![]const u8 {
+    var el = try self.vtable.html(self.ptr, alloc);
+    defer el.deinit();
+    return el.render(alloc);
+}
+
+pub fn deinit(self: Element, alloc: Allocator) void {
+    self.vtable.deinit(self.ptr, alloc);
+}
+
+pub fn html(self: Element, alloc: Allocator) HTML.Error!HTML {
+    return self.vtable.html(self.ptr, alloc);
+}
+
+pub const Empty = struct {
+    content: std.ArrayList(Element),
+
+    const Self = @This();
+
+    pub fn init(alloc: Allocator) !*Self {
+        const v = try alloc.create(Self);
+        v.* = .{ .content = try .initCapacity(alloc, 2) };
+        return v;
+    }
+
+    pub fn element(self: *Self) Element {
+        return .{ .ptr = self, .vtable = .{ .deinit = destroy, .html = Self.html } };
+    }
+
+    pub fn deinit(self: *Self, alloc: Allocator) void {
+        destroy(self, alloc);
+    }
+
+    fn destroy(context: *anyopaque, alloc: Allocator) void {
+        const self: *Self = @ptrCast(@alignCast(context));
+        for (self.content.items) |it| it.deinit(alloc);
+        self.content.deinit(alloc);
+        alloc.destroy(self);
+    }
+
+    fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
+        const self: *Self = @ptrCast(@alignCast(context));
+        var el = HTML.initEmpty(alloc);
+        errdefer el.deinit();
+        for (self.content.items) |it| try el.appendContent(try it.html(alloc));
+        return el;
+    }
+};
+
+pub const Literal = struct {
+    content: []const u8,
+
+    const Self = @This();
+
+    pub fn init(alloc: Allocator, content: []const u8) !*Self {
+        const v = try alloc.create(Self);
+        v.* = .{ .content = content };
+        return v;
+    }
+
+    pub fn element(self: *Self) Element {
+        return .{ .ptr = self, .vtable = .{ .deinit = destroy, .html = Self.html } };
+    }
+
+    pub fn deinit(self: *Self, alloc: Allocator) void {
+        destroy(self, alloc);
+    }
+
+    fn destroy(context: *anyopaque, alloc: Allocator) void {
+        const self: *Self = @ptrCast(@alignCast(context));
+        alloc.destroy(self);
+    }
+
+    fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
+        const self: *Self = @ptrCast(@alignCast(context));
+        return HTML.initLitEscaped(alloc, self.content);
+    }
+};
+
+pub fn Simple(comptime tag: []const u8) type {
+    return struct {
+        content: std.ArrayList(Element),
+
+        const Self = @This();
+
+        pub fn init(alloc: Allocator) !*Self {
+            const v = try alloc.create(Self);
+            v.* = .{ .content = try .initCapacity(alloc, 2) };
+            return v;
+        }
+
+        pub fn element(self: *Self) Element {
+            return .{ .ptr = self, .vtable = .{ .deinit = destroy, .html = Self.html } };
+        }
+
+        pub fn deinit(self: *Self, alloc: Allocator) void {
+            destroy(self, alloc);
+        }
+
+        fn destroy(context: *anyopaque, alloc: Allocator) void {
+            var self: *Self = @ptrCast(@alignCast(context));
+            for (self.content.items) |it| it.deinit(alloc);
+            self.content.deinit(alloc);
+            alloc.destroy(self);
+        }
+
+        fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
+            const self: *Self = @ptrCast(@alignCast(context));
+            var el = try HTML.init(alloc, .content, tag);
+            errdefer el.deinit();
+            for (self.content.items) |it| try el.appendContent(try it.html(alloc));
+            return el;
+        }
+    };
+}

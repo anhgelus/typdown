@@ -2,7 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Token = @import("lexer/Token.zig");
 const Lexer = @import("lexer/Lexer.zig");
-const Element = @import("Element.zig");
+const Element = @import("eval/Element.zig");
+const Paragraph = Element.Paragraph;
 const parser = @import("parser.zig");
 const link = @import("link.zig");
 const content = @import("content.zig");
@@ -13,7 +14,7 @@ const doTestError = testing.doError;
 pub const Error = content.Error || link.Error || Lexer.Error || Allocator.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
-    var el = try Element.Paragraph.init(alloc);
+    var el = try Paragraph.Block.init(alloc);
     errdefer el.deinit(alloc);
     while (l.peek()) |next| {
         switch (next.kind) {

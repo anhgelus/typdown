@@ -3,7 +3,8 @@ const Allocator = std.mem.Allocator;
 const eql = std.mem.eql;
 const Token = @import("lexer/Token.zig");
 const Lexer = @import("lexer/Lexer.zig");
-const Element = @import("Element.zig");
+const Element = @import("eval/Element.zig");
+const Link = Element.Paragraph.Link;
 const content = @import("content.zig");
 const testing = @import("testing.zig");
 const doTest = testing.do;
@@ -16,7 +17,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     const second = data.second orelse return data.first.?;
     var in = if (data.first) |first| first else (try Element.Literal.init(alloc, second)).element();
     errdefer in.deinit(alloc);
-    return (try Element.Link.init(alloc, in, data.second.?)).element();
+    return (try Link.init(alloc, in, data.second.?)).element();
 }
 
 pub const Data = struct {

@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Token = @import("lexer/Token.zig");
 const Lexer = @import("lexer/Lexer.zig");
-const Element = @import("Element.zig");
+const Element = @import("eval/Element.zig");
 const parser = @import("parser.zig");
 const link = @import("link.zig");
 const testing = @import("testing.zig");
@@ -29,7 +29,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
 }
 
 fn parseModifier(alloc: Allocator, l: *Lexer, knd: Token.Kind, comptime tag: []const u8) Error!Element {
-    var el = try Element.Modifier(tag).init(alloc);
+    var el = try Element.Simple(tag).init(alloc);
     errdefer el.deinit(alloc);
     while (l.peek()) |next| {
         if (next.kind == knd) {

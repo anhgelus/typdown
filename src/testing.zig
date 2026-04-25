@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Lexer = @import("lexer/Lexer.zig");
-const Element = @import("Element.zig");
+const Element = @import("eval/Element.zig");
 const parser = @import("parser.zig");
 
 pub fn do(comptime parse: fn (Allocator, *Lexer) parser.Error!Element, alloc: Allocator, t: []const u8, v: []const u8) !void {

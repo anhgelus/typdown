@@ -1,15 +1,9 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 pub const HTML = @import("html/Element.zig");
-pub const Paragraph = struct {
-    const paragraph = @import("paragraph.zig");
-    pub const Block = paragraph.Block;
-    pub const Bold = paragraph.Bold;
-    pub const Code = paragraph.Code;
-    pub const Italic = paragraph.Italic;
-    pub const Link = paragraph.Link;
-};
+pub const paragraph = @import("paragraph.zig");
 pub const Title = @import("Title.zig");
+pub const list = @import("list.zig");
 
 const Element = @This();
 

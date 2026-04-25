@@ -29,15 +29,6 @@ pub const Kind = enum {
     }
 };
 
-pub const Loc = struct {
-    begin: usize,
-    end: usize,
-
-    pub fn get(self: @This(), content: []const u8) []const u8 {
-        return content[self.begin..self.end];
-    }
-};
-
 kind: Kind,
 content: []const u8,
 

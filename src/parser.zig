@@ -6,6 +6,7 @@ const Element = @import("eval/Element.zig");
 const paragraph = @import("paragraph.zig");
 const title = @import("title.zig");
 const link = @import("link.zig");
+const list = @import("list.zig");
 
 pub const Error = error{
     FeatureNotSupported,
@@ -54,6 +55,7 @@ fn gen(parent: Allocator, l: *Lexer) Error!Document {
             .literal, .bold, .italic, .code, .link => try paragraph.parse(alloc, l),
             // other blocks
             .title => try title.parse(alloc, l),
+            .list_ordored => try list.parseOrdored(alloc, l),
             .weak_delimiter, .strong_delimiter => {
                 l.consume();
                 continue :base;

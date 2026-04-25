@@ -1,7 +1,9 @@
 const std = @import("std");
 const eql = std.mem.eql;
 
-pub fn escape(alloc: std.mem.Allocator, v: []const u8) ![]const u8 {
+pub const Error = error{InvalidUtf8} || std.mem.Allocator.Error;
+
+pub fn escape(alloc: std.mem.Allocator, v: []const u8) Error![]const u8 {
     var acc = try std.ArrayList(u8).initCapacity(alloc, v.len);
     errdefer acc.deinit(alloc);
     const view = try std.unicode.Utf8View.init(v);

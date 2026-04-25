@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Token = @import("lexer/Token.zig");
 const Lexer = @import("lexer/Lexer.zig");
-const Element = @import("dom/Element.zig");
+const Element = @import("Element.zig");
 const paragraph = @import("paragraph.zig");
 const testing = @import("testing.zig");
 const doTest = testing.do;
@@ -12,23 +12,14 @@ pub const Error = error{InvalidTitleContent} || paragraph.Error || Lexer.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     const v = l.next().?;
-    var el = try Element.init(alloc, .content, switch (v.content.len) {
-        1 => "h1",
-        2 => "h2",
-        3 => "h3",
-        4 => "h4",
-        5 => "h5",
-        6 => "h6",
-        else => unreachable,
-    });
-    errdefer el.deinit();
-    try el.appendContent(paragraph.parseLine(alloc, l) catch |err| switch (err) {
+    const el = try Element.Title.init(alloc, @intCast(v.content.len), paragraph.parseLine(alloc, l) catch |err| switch (err) {
         paragraph.Error.IllegalPlacement => return Error.InvalidTitleContent,
         else => return err,
     });
-    var next = l.next() orelse return el;
+    errdefer el.deinit(alloc);
+    var next = l.next() orelse return el.element();
     if (!next.kind.isDelimiter()) return Error.InvalidTitleContent;
-    return el;
+    return el.element();
 }
 
 test "parse title" {

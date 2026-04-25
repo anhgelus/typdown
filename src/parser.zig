@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Token = @import("lexer/Token.zig");
 const Lexer = @import("lexer/Lexer.zig");
-const Element = @import("dom/Element.zig");
+const Element = @import("Element.zig");
 const paragraph = @import("paragraph.zig");
 const title = @import("title.zig");
 const link = @import("link.zig");
@@ -46,8 +46,7 @@ fn gen(parent: Allocator, l: *Lexer) Error![]const u8 {
     var res = try std.ArrayList(u8).initCapacity(parent, elements.items.len);
     errdefer res.deinit(parent);
     for (elements.items) |it| {
-        var v = it;
-        try res.appendSlice(parent, try v.render(alloc));
+        try res.appendSlice(parent, try it.renderHTML(alloc));
     }
     return res.toOwnedSlice(parent);
 }

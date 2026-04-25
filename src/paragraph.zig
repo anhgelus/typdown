@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Token = @import("lexer/Token.zig");
 const Lexer = @import("lexer/Lexer.zig");
-const Element = @import("dom/Element.zig");
+const Element = @import("Element.zig");
 const parser = @import("parser.zig");
 const link = @import("link.zig");
 const content = @import("content.zig");
@@ -13,45 +13,46 @@ const doTestError = testing.doError;
 pub const Error = content.Error || link.Error || Lexer.Error || Allocator.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
-    var el = try Element.init(alloc, .content, "p");
-    errdefer el.deinit();
+    var el = try Element.Paragraph.init(alloc);
+    errdefer el.deinit(alloc);
     while (l.peek()) |next| {
         switch (next.kind) {
-            // because nextKind returns only an hint for the next rune
-            .strong_delimiter => return el,
+            .strong_delimiter => return el.element(),
             .weak_delimiter => {
                 l.consume();
-                const future = l.peek() orelse return el;
+                const future = l.peek() orelse return el.element();
                 switch (future.kind) {
-                    .literal, .italic, .code, .bold, .link => try el.appendContent(try Element.initLit(alloc, " ")),
-                    else => return el,
+                    .literal, .italic, .code, .bold, .link => {
+                        try el.content.append(alloc, (try Element.Literal.init(alloc, " ")).element());
+                    },
+                    else => return el.element(),
                 }
             },
-            else => try el.appendContent(try parseLine(alloc, l)),
+            else => try el.content.append(alloc, try parseLine(alloc, l)),
         }
     }
-    return el;
+    return el.element();
 }
 
 pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
-    var line = Element.initEmpty(alloc);
-    errdefer line.deinit();
+    var line = try Element.Empty.init(alloc);
+    errdefer line.deinit(alloc);
     while (l.peek()) |next| {
         switch (next.kind) {
-            .weak_delimiter, .strong_delimiter => return line,
+            .weak_delimiter, .strong_delimiter => return line.element(),
             .link => {
                 var el = try link.parse(alloc, l);
-                errdefer el.deinit();
-                try line.appendContent(el);
+                errdefer el.deinit(alloc);
+                try line.content.append(alloc, el);
             },
             else => {
                 var el = try content.parse(alloc, l);
-                errdefer el.deinit();
-                try line.appendContent(el);
+                errdefer el.deinit(alloc);
+                try line.content.append(alloc, el);
             },
         }
     }
-    return line;
+    return line.element();
 }
 
 test "parse paragraphs" {

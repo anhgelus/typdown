@@ -21,16 +21,23 @@ pub const Kind = enum {
     list_unordored,
     tag,
 
-    pub fn isDelimiter(self: @This()) bool {
+    pub inline fn isDelimiter(self: @This()) bool {
         return switch (self) {
             .weak_delimiter, .strong_delimiter => true,
             else => false,
         };
     }
 
-    pub fn isPar(self: @This()) bool {
+    pub inline fn isPar(self: @This()) bool {
         return switch (self) {
             .literal, .link, .code, .math, .bold, .italic, .ref => true,
+            else => false,
+        };
+    }
+
+    pub inline fn requiresSpace(self: @This()) bool {
+        return switch (self) {
+            .title, .list_ordored, .list_unordored => true,
             else => false,
         };
     }

@@ -25,23 +25,19 @@ pub fn parseUnordored(alloc: Allocator, l: *Lexer) Error!Element {
 }
 
 fn parse(alloc: Allocator, content: *std.ArrayList(Element), l: *Lexer, comptime kind: Token.Kind) !void {
-    while (l.peek()) |next| {
-        switch (next.kind) {
-            kind => {
-                l.consume();
-                continue;
-            },
-            .weak_delimiter => {
-                l.consume();
-                if (l.peek()) |it| if (it.kind != kind) return;
-                continue;
-            },
-            .strong_delimiter => return,
-            else => {
-                try content.append(alloc, try paragraph.parseLine(alloc, l));
-            },
-        }
-    }
+    while (l.peek()) |next| switch (next.kind) {
+        kind => {
+            l.consume();
+            continue;
+        },
+        .weak_delimiter => {
+            l.consume();
+            if (l.peek()) |it| if (it.kind != kind) return;
+            continue;
+        },
+        .strong_delimiter => return,
+        else => try content.append(alloc, try paragraph.parseLine(alloc, l)),
+    };
 }
 
 test "parse ordored list" {

@@ -19,20 +19,18 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     if (!eql(u8, v.content, "[")) return (try Element.Literal.init(alloc, v.content)).element();
     var el = try Element.Empty.init(alloc);
     errdefer el.deinit(alloc);
-    while (l.peek()) |next| {
-        switch (next.kind) {
-            .weak_delimiter, .strong_delimiter => return Error.InvalidLink,
-            .link => {
-                l.consume();
-                if (!eql(u8, next.content, "](")) return Error.InvalidLink;
-                break;
-            },
-            else => {
-                const in = try content.parse(alloc, l);
-                try el.content.append(alloc, in);
-            },
-        }
-    }
+    while (l.peek()) |next| switch (next.kind) {
+        .weak_delimiter, .strong_delimiter => return Error.InvalidLink,
+        .link => {
+            l.consume();
+            if (!eql(u8, next.content, "](")) return Error.InvalidLink;
+            break;
+        },
+        else => {
+            const in = try content.parse(alloc, l);
+            try el.content.append(alloc, in);
+        },
+    };
     const href = l.next() orelse return Error.InvalidLink;
     if (href.kind != .literal) return Error.InvalidLink;
     const finisher = l.next() orelse return Error.InvalidLink;

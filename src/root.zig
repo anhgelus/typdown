@@ -15,6 +15,7 @@ inline fn getErrorCode(err: Error) u8 {
         Error.IllegalPlacement => 6,
         Error.InvalidLink => 7,
         Error.InvalidImage => 8,
+        Error.InvalidCodeBlock => 9,
     };
 }
 
@@ -29,6 +30,7 @@ export fn typdown_getErrorString(code: u8) [*:0]const u8 {
         6 => "illegal placement",
         7 => "invalid link",
         8 => "invalid image",
+        9 => "invalid code block",
         else => unreachable,
     };
 }

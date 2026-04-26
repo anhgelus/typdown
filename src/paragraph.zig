@@ -16,39 +16,35 @@ pub const Error = content.Error || link.Error || Allocator.Error;
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Paragraph.Block.init(alloc);
     errdefer el.deinit(alloc);
-    while (l.peek()) |next| {
-        switch (next.kind) {
-            .strong_delimiter => return el.element(),
-            .weak_delimiter => {
-                l.consume();
-                const future = l.peek() orelse return el.element();
-                if (!future.kind.isPar()) return el.element();
-                try el.content.append(alloc, (try Element.Literal.init(alloc, " ")).element());
-            },
-            else => try el.content.append(alloc, try parseLine(alloc, l)),
-        }
-    }
+    while (l.peek()) |next| switch (next.kind) {
+        .strong_delimiter => return el.element(),
+        .weak_delimiter => {
+            l.consume();
+            const future = l.peek() orelse return el.element();
+            if (!future.kind.isPar()) return el.element();
+            try el.content.append(alloc, (try Element.Literal.init(alloc, " ")).element());
+        },
+        else => try el.content.append(alloc, try parseLine(alloc, l)),
+    };
     return el.element();
 }
 
 pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
     var line = try Element.Empty.init(alloc);
     errdefer line.deinit(alloc);
-    while (l.peek()) |next| {
-        switch (next.kind) {
-            .weak_delimiter, .strong_delimiter => return line.element(),
-            .link => {
-                var el = try link.parse(alloc, l);
-                errdefer el.deinit(alloc);
-                try line.content.append(alloc, el);
-            },
-            else => {
-                var el = try content.parse(alloc, l);
-                errdefer el.deinit(alloc);
-                try line.content.append(alloc, el);
-            },
-        }
-    }
+    while (l.peek()) |next| switch (next.kind) {
+        .weak_delimiter, .strong_delimiter => return line.element(),
+        .link => {
+            var el = try link.parse(alloc, l);
+            errdefer el.deinit(alloc);
+            try line.content.append(alloc, el);
+        },
+        else => {
+            var el = try content.parse(alloc, l);
+            errdefer el.deinit(alloc);
+            try line.content.append(alloc, el);
+        },
+    };
     return line.element();
 }
 

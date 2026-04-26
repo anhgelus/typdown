@@ -54,7 +54,7 @@ pub fn next(self: *Self) ?Token {
         // conds here to avoid creating complex condition in while
         const next_rune = self.iter.peek(1);
         const next_kind = self.getCurrentKind(current_kind, next_rune, self.content[beg..end]).kind;
-        if (requiresSpace(current_kind.?) and next_kind != current_kind.?) {
+        if (current_kind.?.requiresSpace() and next_kind != current_kind.?) {
             if (eql(u8, next_rune, " ")) {
                 // consume next space
                 _ = self.iter.nextCodepoint();
@@ -163,13 +163,6 @@ fn isOneOrThree(op: []const u8, rune: []const u8, p: []const u8, one: Token.Kind
         },
         3 => .{ .kind = three },
         else => unreachable,
-    };
-}
-
-fn requiresSpace(k: Token.Kind) bool {
-    return switch (k) {
-        .title, .list_ordored, .list_unordored => true,
-        else => false,
     };
 }
 

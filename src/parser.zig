@@ -7,10 +7,17 @@ const paragraph = @import("paragraph.zig");
 const title = @import("title.zig");
 const link = @import("link.zig");
 const list = @import("list.zig");
+const code = @import("code.zig");
 
-pub const Error = error{
-    FeatureNotSupported,
-} || Lexer.Error || paragraph.Error || title.Error || link.Error || list.Error || link.ImageError || Allocator.Error;
+pub const Error = error{FeatureNotSupported} ||
+    Lexer.Error ||
+    paragraph.Error ||
+    title.Error ||
+    link.Error ||
+    list.Error ||
+    link.ImageError ||
+    code.Error ||
+    Allocator.Error;
 
 pub const Document = struct {
     arena: std.heap.ArenaAllocator,
@@ -56,6 +63,7 @@ fn gen(parent: Allocator, l: *Lexer) Error!Document {
             .list_ordored => try list.parseOrdored(alloc, l),
             .list_unordored => try list.parseUnordored(alloc, l),
             .image => try link.parseImage(alloc, l),
+            .code_block => try code.parse(alloc, l),
             .weak_delimiter, .strong_delimiter => {
                 l.consume();
                 continue :base;

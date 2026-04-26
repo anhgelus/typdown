@@ -113,6 +113,24 @@ pub fn Simple(comptime tag: []const u8) type {
             destroy(self, alloc);
         }
 
+        pub fn toTag(self: *Self, alloc: Allocator, comptime target: []const u8) !*Simple(target) {
+            const el = try Simple(target).init(alloc);
+            self.conv(alloc, &el.content);
+            return el;
+        }
+
+        pub fn toEmpty(self: *Self, alloc: Allocator) !*Empty {
+            const el = try Empty.init(alloc);
+            self.conv(alloc, &el.content);
+            return el;
+        }
+
+        fn conv(self: *Self, alloc: Allocator, arr: *std.ArrayList(Element)) void {
+            arr.deinit(alloc);
+            arr.* = self.content;
+            alloc.destroy(self);
+        }
+
         fn destroy(context: *anyopaque, alloc: Allocator) void {
             var self: *Self = @ptrCast(@alignCast(context));
             for (self.content.items) |it| it.deinit(alloc);

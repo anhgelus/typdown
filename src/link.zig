@@ -81,13 +81,8 @@ pub fn parseImage(alloc: Allocator, l: *Lexer) ImageError!Element {
     }
     const p = try paragraph.parse(alloc, l);
     errdefer p.deinit(alloc);
-    el.source = p;
     const p_el: *Element.paragraph.Block = @ptrCast(@alignCast(p.ptr));
-    defer p_el.deinit(alloc);
-    const in = try Element.Empty.init(alloc);
-    errdefer in.deinit(alloc);
-    in.content = try p_el.content.clone(alloc);
-    el.source = in.element();
+    el.source = (try p_el.toEmpty(alloc)).element();
     return el.element();
 }
 
@@ -110,4 +105,12 @@ test "parse image" {
 
     try doTest(parseImage, alloc, "![](src)", "<figure><img src=\"src\"></figure>");
     try doTest(parseImage, alloc, "![alt](src)", "<figure><img src=\"src\" alt=\"alt\"></figure>");
+
+    try doTest(parseImage, alloc,
+        \\![bar](foo)
+        \\caption
+        \\on multiple lines!
+        \\
+        \\not in
+    , "<figure><img src=\"foo\" alt=\"bar\"><figcaption>caption on multiple lines!</figcaption></figure>");
 }

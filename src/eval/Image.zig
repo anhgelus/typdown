@@ -45,7 +45,7 @@ fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
     const source = self.source orelse return el;
     var caption = try HTML.init(alloc, .content, "figcaption");
     errdefer caption.deinit();
-    try caption.content.append(alloc, try source.html(alloc));
+    try caption.appendContent(try source.html(alloc));
     try el.appendContent(caption);
     return el;
 }
@@ -65,4 +65,11 @@ test "html" {
     const h2 = try img.element().renderHTML(alloc);
     defer alloc.free(h2);
     try expect(eql(u8, h2, "<figure><img src=\"foo\" alt=\"bar\"></figure>"));
+
+    const in = try Element.Empty.init(alloc);
+    try in.content.append(alloc, (try Element.Literal.init(alloc, "caption")).element());
+    img.source = in.element();
+    const h3 = try img.element().renderHTML(alloc);
+    defer alloc.free(h3);
+    try expect(eql(u8, h3, "<figure><img src=\"foo\" alt=\"bar\"><figcaption>caption</figcaption></figure>"));
 }

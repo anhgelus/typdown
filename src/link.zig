@@ -70,9 +70,11 @@ pub fn parseImage(alloc: Allocator, l: *Lexer) ImageError!Element {
     const src = it.content;
     it = l.next() orelse return ImageError.InvalidImage;
     if (!it.equals(.link, ")")) return ImageError.InvalidImage;
-    const el = try Element.Image.init(alloc, src);
+    const img = try Element.Image.init(alloc, src);
+    errdefer img.deinit(alloc);
+    img.alt = alt;
+    const el = try Element.Figure.init(alloc, img.element());
     errdefer el.deinit(alloc);
-    el.alt = alt;
     it = l.peek() orelse return el.element();
     switch (it.kind) {
         .strong_delimiter => return el.element(),
@@ -82,7 +84,7 @@ pub fn parseImage(alloc: Allocator, l: *Lexer) ImageError!Element {
     const p = try paragraph.parse(alloc, l);
     errdefer p.deinit(alloc);
     const p_el: *Element.paragraph.Block = @ptrCast(@alignCast(p.ptr));
-    el.source = (try p_el.toEmpty(alloc)).element();
+    el.caption = (try p_el.toEmpty(alloc)).element();
     return el.element();
 }
 

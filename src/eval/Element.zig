@@ -5,6 +5,9 @@ pub const paragraph = @import("paragraph.zig");
 pub const Title = @import("Title.zig");
 pub const list = @import("list.zig");
 pub const Image = @import("Image.zig");
+const blocks = @import("blocks.zig");
+pub const Code = blocks.Code;
+pub const Figure = blocks.Figure;
 
 const Element = @This();
 

@@ -8,7 +8,7 @@ const testing = @import("testing.zig");
 const doTest = testing.do;
 const doTestError = testing.doError;
 
-pub const Error = error{InvalidTitleContent} || paragraph.Error || Lexer.Error;
+pub const Error = error{InvalidTitleContent} || paragraph.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     const v = l.next().?;

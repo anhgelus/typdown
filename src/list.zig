@@ -8,14 +8,16 @@ const testing = @import("testing.zig");
 const doTest = testing.do;
 const doTestError = testing.doError;
 
-pub fn parseOrdored(alloc: Allocator, l: *Lexer) !Element {
+pub const Error = paragraph.Error || Allocator.Error;
+
+pub fn parseOrdored(alloc: Allocator, l: *Lexer) Error!Element {
     const el = try Element.list.Ordored.init(alloc);
     errdefer el.deinit(alloc);
     try parse(alloc, &el.content, l, .list_ordored);
     return el.element();
 }
 
-pub fn parseUnordored(alloc: Allocator, l: *Lexer) !Element {
+pub fn parseUnordored(alloc: Allocator, l: *Lexer) Error!Element {
     const el = try Element.list.Unordored.init(alloc);
     errdefer el.deinit(alloc);
     try parse(alloc, &el.content, l, .list_unordored);
@@ -54,6 +56,8 @@ test "parse ordored list" {
         \\. two
         \\no more
     , "<ol><li>one</li><li>two</li></ol>");
+
+    try doTestError(parseOrdored, alloc, ".one :::", Error.IllegalPlacement);
 }
 
 test "parse unordored list" {
@@ -68,4 +72,6 @@ test "parse unordored list" {
         \\- two
         \\no more
     , "<ul><li>one</li><li>two</li></ul>");
+
+    try doTestError(parseOrdored, alloc, "- one :::", Error.IllegalPlacement);
 }

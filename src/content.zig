@@ -9,7 +9,7 @@ const testing = @import("testing.zig");
 const doTest = testing.do;
 const doTestError = testing.doError;
 
-pub const Error = error{ ModifierNotClosed, IllegalPlacement } || Lexer.Error || Allocator.Error;
+pub const Error = error{ ModifierNotClosed, IllegalPlacement } || Allocator.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var content = try Element.Empty.init(alloc);

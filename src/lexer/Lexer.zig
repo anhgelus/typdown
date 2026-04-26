@@ -223,6 +223,29 @@ test "lexer common" {
     try std.testing.expect(l.next() == null);
 }
 
+test "lexer image" {
+    var l = try init("![alt](src)");
+
+    try doTest(&l, .image, "!");
+    try doTest(&l, .link, "[");
+    try doTest(&l, .literal, "alt");
+    try doTest(&l, .link, "](");
+    try doTest(&l, .literal, "src");
+    try doTest(&l, .link, ")");
+
+    try std.testing.expect(l.next() == null);
+
+    l = try init("![](src)");
+
+    try doTest(&l, .image, "!");
+    try doTest(&l, .link, "[");
+    try doTest(&l, .link, "](");
+    try doTest(&l, .literal, "src");
+    try doTest(&l, .link, ")");
+
+    try std.testing.expect(l.next() == null);
+}
+
 test "lexer multiline" {
     var l = try init(
         \\# Title

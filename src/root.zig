@@ -14,6 +14,7 @@ inline fn getErrorCode(err: Error) u8 {
         Error.InvalidTitleContent => 5,
         Error.IllegalPlacement => 6,
         Error.InvalidLink => 7,
+        Error.InvalidImage => 8,
     };
 }
 
@@ -27,6 +28,7 @@ export fn typdown_getErrorString(code: u8) [*:0]const u8 {
         5 => "invalid title content",
         6 => "illegal placement",
         7 => "invalid link",
+        8 => "invalid image",
         else => unreachable,
     };
 }

@@ -27,6 +27,13 @@ pub const Kind = enum {
             else => false,
         };
     }
+
+    pub fn isPar(self: @This()) bool {
+        return switch (self) {
+            .literal, .link, .code, .math, .bold, .italic, .ref => true,
+            else => false,
+        };
+    }
 };
 
 kind: Kind,

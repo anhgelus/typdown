@@ -10,7 +10,7 @@ const list = @import("list.zig");
 
 pub const Error = error{
     FeatureNotSupported,
-} || Lexer.Error || paragraph.Error || title.Error || link.Error || Allocator.Error;
+} || Lexer.Error || paragraph.Error || title.Error || link.Error || list.Error || link.ImageError || Allocator.Error;
 
 pub const Document = struct {
     arena: std.heap.ArenaAllocator,
@@ -51,17 +51,21 @@ fn gen(parent: Allocator, l: *Lexer) Error!Document {
     var elements = try std.ArrayList(Element).initCapacity(alloc, 2);
     base: while (l.peek()) |it| {
         try elements.append(alloc, switch (it.kind) {
-            // block paragraph
-            .literal, .bold, .italic, .code, .link => try paragraph.parse(alloc, l),
             // other blocks
             .title => try title.parse(alloc, l),
             .list_ordored => try list.parseOrdored(alloc, l),
             .list_unordored => try list.parseUnordored(alloc, l),
+            .image => try link.parseImage(alloc, l),
             .weak_delimiter, .strong_delimiter => {
                 l.consume();
                 continue :base;
             },
-            else => return Error.FeatureNotSupported,
+            else =>
+            // block paragraph
+            if (it.kind.isPar())
+                try paragraph.parse(alloc, l)
+            else
+                return Error.FeatureNotSupported,
         });
     }
     return .{ .root = try elements.toOwnedSlice(alloc), .arena = arena };

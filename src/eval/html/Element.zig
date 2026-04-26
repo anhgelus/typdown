@@ -178,19 +178,6 @@ pub fn appendContent(self: *Self, content: Self) Error!void {
     return self.content.append(alloc, content);
 }
 
-pub fn initImg(alloc: Allocator, src: []const u8, alt: []const u8) Error!Self {
-    var el = try init(alloc, .void, "img");
-    try el.setAttribute("src", src);
-    try el.setAttribute("alt", alt);
-    return el;
-}
-
-pub fn initContent(alloc: Allocator, tag: []const u8, content: []Self) Error!Self {
-    var el = try init(alloc, .content, tag);
-    for (content) |it| try el.appendContent(it);
-    return el;
-}
-
 fn doTest(alloc: Allocator, el: *Self, exp: []const u8) !void {
     const got = try el.render(alloc);
     defer alloc.free(got);
@@ -214,10 +201,6 @@ test "void element" {
     try img.setAttribute("alt", "bar");
 
     try doTest(alloc, &img, "<img src=\"foo\" alt=\"bar\">");
-
-    var img2 = try initImg(alloc, "foo", "bar");
-    defer img2.deinit();
-    try doTest(alloc, &img2, "<img src=\"foo\" alt=\"bar\">");
 }
 
 test "content element" {
@@ -235,7 +218,7 @@ test "content element" {
     defer div.deinit();
     try div.appendClass("foo-bar");
     try div.appendContent(p);
-    try div.appendContent(try initImg(alloc, "example.org", "example"));
+    try div.appendContent(try init(alloc, .void, "br"));
 
-    try doTest(alloc, &div, "<div class=\"foo-bar\"><p>hello world</p><img src=\"example.org\" alt=\"example\"></div>");
+    try doTest(alloc, &div, "<div class=\"foo-bar\"><p>hello world</p><br></div>");
 }

@@ -6,32 +6,17 @@ const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("eval/Element.zig");
 const Link = Element.paragraph.Link;
 const content = @import("content.zig");
+const paragraph = @import("paragraph.zig");
 const testing = @import("testing.zig");
 const doTest = testing.do;
 const doTestError = testing.doError;
 
-pub const Error = error{InvalidLink} || Lexer.Error || content.Error || Allocator.Error;
+pub const Error = error{InvalidLink} || content.Error || Allocator.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
-    const data = try parseData(alloc, l);
-    const second = data.second orelse return data.first.?;
-    var in = if (data.first) |first| first else (try Element.Literal.init(alloc, second)).element();
-    errdefer in.deinit(alloc);
-    return (try Link.init(alloc, in, data.second.?)).element();
-}
-
-pub const Data = struct {
-    first: ?Element,
-    second: ?[]const u8,
-};
-
-pub fn parseData(alloc: Allocator, l: *Lexer) Error!Data {
     const v = l.next().?;
     if (v.kind != .link) return Error.InvalidLink;
-    if (!eql(u8, v.content, "[")) {
-        const el = try Element.Literal.init(alloc, v.content);
-        return .{ .first = el.element(), .second = null };
-    }
+    if (!eql(u8, v.content, "[")) return (try Element.Literal.init(alloc, v.content)).element();
     var el = try Element.Empty.init(alloc);
     errdefer el.deinit(alloc);
     while (l.peek()) |next| {
@@ -52,15 +37,58 @@ pub fn parseData(alloc: Allocator, l: *Lexer) Error!Data {
     if (href.kind != .literal) return Error.InvalidLink;
     const finisher = l.next() orelse return Error.InvalidLink;
     if (!finisher.equals(.link, ")")) return Error.InvalidLink;
-    var res = Data{
-        .first = el.element(),
-        .second = href.content,
-    };
-    if (el.content.items.len == 0) {
-        res.first = null;
+    var in: Element = undefined;
+    if (el.content.items.len > 0) {
+        in = el.element();
+    } else {
         el.deinit(alloc);
+        in = (try Element.Literal.init(alloc, href.content)).element();
     }
-    return res;
+    errdefer in.deinit(alloc);
+    return (try Link.init(alloc, in, href.content)).element();
+}
+
+pub const ImageError = error{InvalidImage} || paragraph.Error || Allocator.Error;
+
+pub fn parseImage(alloc: Allocator, l: *Lexer) ImageError!Element {
+    _ = l.next().?;
+    const beg = l.next() orelse return ImageError.InvalidImage;
+    if (!eql(u8, beg.content, "[")) return ImageError.InvalidImage;
+    var it = l.next() orelse return ImageError.InvalidImage;
+    var alt: ?[]const u8 = null;
+    switch (it.kind) {
+        .link => if (!eql(u8, it.content, "](")) return ImageError.InvalidImage,
+        .literal => {
+            alt = it.content;
+            const next = l.next() orelse return ImageError.InvalidImage;
+            if (!next.equals(.link, "](")) return ImageError.InvalidImage;
+        },
+        else => return ImageError.InvalidImage,
+    }
+    it = l.next() orelse return ImageError.InvalidImage;
+    if (it.kind != .literal) return ImageError.InvalidImage;
+    const src = it.content;
+    it = l.next() orelse return ImageError.InvalidImage;
+    if (!it.equals(.link, ")")) return ImageError.InvalidImage;
+    const el = try Element.Image.init(alloc, src);
+    errdefer el.deinit(alloc);
+    el.alt = alt;
+    it = l.peek() orelse return el.element();
+    switch (it.kind) {
+        .strong_delimiter => return el.element(),
+        .weak_delimiter => l.consume(),
+        else => return ImageError.InvalidImage,
+    }
+    const p = try paragraph.parse(alloc, l);
+    errdefer p.deinit(alloc);
+    el.source = p;
+    const p_el: *Element.paragraph.Block = @ptrCast(@alignCast(p.ptr));
+    defer p_el.deinit(alloc);
+    const in = try Element.Empty.init(alloc);
+    errdefer in.deinit(alloc);
+    in.content = try p_el.content.clone(alloc);
+    el.source = in.element();
+    return el.element();
 }
 
 test "parse links" {
@@ -75,4 +103,11 @@ test "parse links" {
     try doTestError(parse, alloc, "[foo", Error.InvalidLink);
     try doTestError(parse, alloc, "[foo](", Error.InvalidLink);
     try doTestError(parse, alloc, "[foo]()", Error.InvalidLink);
+}
+
+test "parse image" {
+    const alloc = std.testing.allocator;
+
+    try doTest(parseImage, alloc, "![](src)", "<figure><img src=\"src\"></figure>");
+    try doTest(parseImage, alloc, "![alt](src)", "<figure><img src=\"src\" alt=\"alt\"></figure>");
 }

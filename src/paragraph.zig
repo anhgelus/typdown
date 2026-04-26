@@ -11,7 +11,7 @@ const testing = @import("testing.zig");
 const doTest = testing.do;
 const doTestError = testing.doError;
 
-pub const Error = content.Error || link.Error || Lexer.Error || Allocator.Error;
+pub const Error = content.Error || link.Error || Allocator.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Paragraph.Block.init(alloc);
@@ -22,12 +22,8 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
             .weak_delimiter => {
                 l.consume();
                 const future = l.peek() orelse return el.element();
-                switch (future.kind) {
-                    .literal, .italic, .code, .bold, .link => {
-                        try el.content.append(alloc, (try Element.Literal.init(alloc, " ")).element());
-                    },
-                    else => return el.element(),
-                }
+                if (!future.kind.isPar()) return el.element();
+                try el.content.append(alloc, (try Element.Literal.init(alloc, " ")).element());
             },
             else => try el.content.append(alloc, try parseLine(alloc, l)),
         }

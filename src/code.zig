@@ -24,7 +24,6 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     }
     const code = try Element.Code.init(alloc);
     code.attribute = data;
-    const el = try Element.Figure.init(alloc, code.element());
     while (l.next()) |it| {
         if (it.kind == .code_block) return Error.InvalidCodeBlock;
         if (it.kind.isDelimiter()) {
@@ -38,6 +37,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     }
     var end = l.next() orelse return Error.InvalidCodeBlock;
     if (end.kind != .code_block) return Error.InvalidCodeBlock;
+    const el = try Element.Figure.init(alloc, code.element());
     end = l.next() orelse return el.element();
     if (!end.kind.isDelimiter()) return Error.InvalidCodeBlock;
     return el.element();

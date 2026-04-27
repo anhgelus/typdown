@@ -9,6 +9,7 @@ pub const Root = @import("Root.zig");
 const blocks = @import("blocks.zig");
 pub const Code = blocks.Code;
 pub const Figure = blocks.Figure;
+pub const Callout = blocks.Callout;
 
 const Element = @This();
 

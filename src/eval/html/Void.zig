@@ -28,7 +28,7 @@ pub fn element(self: *Self) Element {
 }
 
 pub fn setAttribute(self: *Self, k: []const u8, v: []const u8) Error!void {
-    try self.attributes.put(try self.alloc.dupe(u8, k), try self.alloc.dupe(u8, v));
+    try self.attributes.put(try self.alloc.dupe(u8, k), try html.escape(self.alloc, v));
 }
 
 pub fn removeAttribute(self: *Self, k: []const u8) void {
@@ -40,7 +40,7 @@ pub fn hasAttribute(self: *Self, k: []const u8) bool {
 }
 
 pub fn appendClass(self: *Self, v: []const u8) Error!void {
-    try self.class_list.insert(v);
+    try self.class_list.insert(try html.escape(self.alloc, v));
 }
 
 pub fn hasClass(self: *Self, v: []const u8) bool {

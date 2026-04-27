@@ -57,3 +57,30 @@ pub const Figure = struct {
         return el.element();
     }
 };
+
+pub const Callout = struct {
+    content: Element,
+    title: ?[]const u8 = null,
+    kind: ?[]const u8 = null,
+
+    const Self = @This();
+
+    pub fn init(alloc: Allocator, content: Element) !*Self {
+        const v = try alloc.create(Self);
+        v.* = .{ .content = content };
+        return v;
+    }
+
+    pub fn element(self: *Self) Element {
+        return .{ .ptr = self, .vtable = .{ .html = Self.html } };
+    }
+
+    fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
+        const self: *Self = @ptrCast(@alignCast(context));
+        var el = try HTML.Content.init(alloc, "div");
+        try el.base.appendClass("callout");
+        if (self.kind) |kind| try el.base.setAttribute("data-callout", kind);
+        try el.append(try self.content.html(alloc));
+        return el.element();
+    }
+};

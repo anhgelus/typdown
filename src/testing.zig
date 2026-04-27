@@ -24,6 +24,11 @@ pub fn doError(comptime parse: fn (Allocator, *Lexer) parser.Error!Element, pare
     defer arena.deinit();
 
     var l = try Lexer.init(t);
-    _ = parse(arena.allocator(), &l) catch |e| return std.testing.expect(err == e);
-    return std.testing.expect(false);
+    _ = parse(arena.allocator(), &l) catch |e| {
+        return std.testing.expect(err == e) catch |v| {
+            std.debug.print("{}\n", .{v});
+            return e;
+        };
+    };
+    return error.ExpectingError;
 }

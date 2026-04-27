@@ -8,6 +8,7 @@ const title = @import("title.zig");
 const link = @import("link.zig");
 const list = @import("list.zig");
 const code = @import("code.zig");
+const callout = @import("callout.zig");
 
 pub const Error = error{FeatureNotSupported} ||
     Lexer.Error ||
@@ -17,6 +18,7 @@ pub const Error = error{FeatureNotSupported} ||
     list.Error ||
     link.ImageError ||
     code.Error ||
+    callout.Error ||
     Allocator.Error;
 
 pub const Document = *Element.Root;

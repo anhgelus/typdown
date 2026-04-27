@@ -32,14 +32,12 @@ pub const Code = struct {
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
         const self: *Self = @ptrCast(@alignCast(context));
-        var el = try HTML.init(alloc, .content, "pre");
-        errdefer el.deinit();
-        if (self.attribute) |attr| try el.setAttribute("data-code", attr);
-        var code = try HTML.init(alloc, .content, "code");
-        errdefer code.deinit();
-        for (self.content.items) |it| try code.appendContent(try it.html(alloc));
-        try el.appendContent(code);
-        return el;
+        var el = try HTML.Content.init(alloc, "pre");
+        if (self.attribute) |attr| try el.base.setAttribute("data-code", attr);
+        var code = try HTML.Content.init(alloc, "code");
+        for (self.content.items) |it| try code.append(try it.html(alloc));
+        try el.append(code.element());
+        return el.element();
     }
 };
 
@@ -72,14 +70,12 @@ pub const Figure = struct {
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
         const self: *Self = @ptrCast(@alignCast(context));
-        var el = try HTML.init(alloc, .content, "figure");
-        errdefer el.deinit();
-        try el.appendContent(try self.content.html(alloc));
-        const caption = self.caption orelse return el;
-        var figcap = try HTML.init(alloc, .content, "figcaption");
-        errdefer figcap.deinit();
-        try figcap.appendContent(try caption.html(alloc));
-        try el.appendContent(figcap);
-        return el;
+        var el = try HTML.Content.init(alloc, "figure");
+        try el.append(try self.content.html(alloc));
+        const caption = self.caption orelse return el.element();
+        var figcap = try HTML.Content.init(alloc, "figcaption");
+        try figcap.append(try caption.html(alloc));
+        try el.append(figcap.element());
+        return el.element();
     }
 };

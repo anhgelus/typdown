@@ -18,8 +18,9 @@ vtable: struct {
 ptr: *anyopaque,
 
 pub fn renderHTML(self: Element, alloc: Allocator) HTML.Error![]const u8 {
-    var el = try self.vtable.html(self.ptr, alloc);
-    defer el.deinit();
+    const root = try HTML.Root.init(alloc);
+    defer root.deinit();
+    var el = try self.vtable.html(self.ptr, root.allocator());
     return el.render(alloc);
 }
 
@@ -59,10 +60,10 @@ pub const Empty = struct {
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
         const self: *Self = @ptrCast(@alignCast(context));
-        var el = HTML.initEmpty(alloc);
+        var el = try HTML.Root.init(alloc);
         errdefer el.deinit();
-        for (self.content.items) |it| try el.appendContent(try it.html(alloc));
-        return el;
+        for (self.content.items) |it| try el.append(try it.html(el.allocator()));
+        return el.element();
     }
 };
 
@@ -92,7 +93,7 @@ pub const Literal = struct {
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
         const self: *Self = @ptrCast(@alignCast(context));
-        return HTML.initLitEscaped(alloc, self.content);
+        return (try HTML.Literal.init(alloc, self.content)).element();
     }
 };
 
@@ -143,10 +144,9 @@ pub fn Simple(comptime tag: []const u8) type {
 
         fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
             const self: *Self = @ptrCast(@alignCast(context));
-            var el = try HTML.init(alloc, .content, tag);
-            errdefer el.deinit();
-            for (self.content.items) |it| try el.appendContent(try it.html(alloc));
-            return el;
+            var el = try HTML.Content.init(alloc, tag);
+            for (self.content.items) |it| try el.append(try it.html(alloc));
+            return el.element();
         }
     };
 }

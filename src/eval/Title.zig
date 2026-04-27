@@ -30,7 +30,7 @@ fn destroy(context: *anyopaque, alloc: Allocator) void {
 
 fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
     const self: *Self = @ptrCast(@alignCast(context));
-    var el = try HTML.init(alloc, .content, switch (self.level) {
+    var el = try HTML.Content.init(alloc, switch (self.level) {
         1 => "h1",
         2 => "h2",
         3 => "h3",
@@ -39,7 +39,6 @@ fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
         6 => "h6",
         else => unreachable,
     });
-    errdefer el.deinit();
-    try el.appendContent(try self.content.html(alloc));
-    return el;
+    try el.append(try self.content.html(alloc));
+    return el.element();
 }

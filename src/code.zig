@@ -58,4 +58,19 @@ test "code" {
         \\```
     , "<figure><pre data-code=\"td another\"><code>hey</code></pre></figure>");
     // cannot test content with \n
+
+    try doTestError(parse, alloc, "```", Error.InvalidCodeBlock);
+    try doTestError(parse, alloc,
+        \\```
+        \\hey
+    , Error.InvalidCodeBlock);
+    try doTestError(parse, alloc,
+        \\```
+        \\hey```
+    , Error.InvalidCodeBlock);
+    try doTestError(parse, alloc,
+        \\```
+        \\hey
+        \\``` nope
+    , Error.InvalidCodeBlock);
 }

@@ -31,12 +31,10 @@ fn destroy(context: *anyopaque, alloc: Allocator) void {
 
 fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
     const self: *Self = @ptrCast(@alignCast(context));
-
-    var img = try HTML.init(alloc, .void, "img");
-    errdefer img.deinit();
+    var img = try HTML.Void.init(alloc, "img");
     try img.setAttribute("src", self.src);
     if (self.alt) |it| try img.setAttribute("alt", it);
-    return img;
+    return img.element();
 }
 
 test "html" {

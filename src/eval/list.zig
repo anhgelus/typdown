@@ -34,14 +34,13 @@ fn List(comptime tag: []const u8) type {
 
         fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
             const self: *Self = @ptrCast(@alignCast(context));
-            var el = try HTML.init(alloc, .content, tag);
-            errdefer el.deinit();
+            var el = try HTML.Content.init(alloc, tag);
             for (self.content.items) |it| {
-                var li = try HTML.init(alloc, .content, "li");
-                try li.appendContent(try it.html(alloc));
-                try el.appendContent(li);
+                var li = try HTML.Content.init(alloc, "li");
+                try li.append(try it.html(alloc));
+                try el.append(li.element());
             }
-            return el;
+            return el.element();
         }
     };
 }

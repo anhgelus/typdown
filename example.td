@@ -18,7 +18,7 @@ Existing blocks:
 > yay
 with an attribution :D
 
-::: info
+:::info
 A beautiful callout
 :::
 

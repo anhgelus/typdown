@@ -13,7 +13,6 @@ pub const Error = error{ ModifierNotClosed, IllegalPlacement } || Allocator.Erro
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var content = try Element.Empty.init(alloc);
-    errdefer content.deinit(alloc);
     const v = l.next().?;
     switch (v.kind) {
         .literal => {
@@ -30,7 +29,6 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
 
 fn parseModifier(alloc: Allocator, l: *Lexer, knd: Token.Kind, comptime tag: []const u8) Error!Element {
     var el = try Element.Simple(tag).init(alloc);
-    errdefer el.deinit(alloc);
     while (l.peek()) |next| {
         if (next.kind == knd) {
             // consuming the finisher

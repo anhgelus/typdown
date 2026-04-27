@@ -18,21 +18,10 @@ fn List(comptime tag: []const u8) type {
         }
 
         pub fn element(self: *Self) Element {
-            return .{ .ptr = self, .vtable = .{ .deinit = destroy, .html = html } };
+            return .{ .ptr = self, .vtable = .{ .html = html } };
         }
 
-        pub fn deinit(self: *Self, alloc: Allocator) void {
-            destroy(self, alloc);
-        }
-
-        fn destroy(context: *anyopaque, alloc: Allocator) void {
-            var self: *Self = @ptrCast(@alignCast(context));
-            for (self.content.items) |it| it.deinit(alloc);
-            self.content.deinit(alloc);
-            alloc.destroy(self);
-        }
-
-        fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
+       fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
             const self: *Self = @ptrCast(@alignCast(context));
             var el = try HTML.Content.init(alloc, tag);
             for (self.content.items) |it| {

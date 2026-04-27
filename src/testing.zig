@@ -4,10 +4,13 @@ const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("eval/Element.zig");
 const parser = @import("parser.zig");
 
-pub fn do(comptime parse: fn (Allocator, *Lexer) parser.Error!Element, alloc: Allocator, t: []const u8, v: []const u8) !void {
+pub fn do(comptime parse: fn (Allocator, *Lexer) parser.Error!Element, parent: Allocator, t: []const u8, v: []const u8) !void {
+    var arena = std.heap.ArenaAllocator.init(parent);
+    defer arena.deinit();
+    var alloc = arena.allocator();
+
     var l = try Lexer.init(t);
     var p = try parse(alloc, &l);
-    defer p.deinit(alloc);
     const g = try p.renderHTML(alloc);
     defer alloc.free(g);
     std.testing.expect(std.mem.eql(u8, g, v)) catch |err| {
@@ -16,8 +19,11 @@ pub fn do(comptime parse: fn (Allocator, *Lexer) parser.Error!Element, alloc: Al
     };
 }
 
-pub fn doError(comptime parse: fn (Allocator, *Lexer) parser.Error!Element, alloc: Allocator, t: []const u8, err: parser.Error) !void {
+pub fn doError(comptime parse: fn (Allocator, *Lexer) parser.Error!Element, parent: Allocator, t: []const u8, err: parser.Error) !void {
+    var arena = std.heap.ArenaAllocator.init(parent);
+    defer arena.deinit();
+
     var l = try Lexer.init(t);
-    _ = parse(alloc, &l) catch |e| return std.testing.expect(err == e);
+    _ = parse(arena.allocator(), &l) catch |e| return std.testing.expect(err == e);
     return std.testing.expect(false);
 }

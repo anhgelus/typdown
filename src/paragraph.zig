@@ -15,7 +15,6 @@ pub const Error = content.Error || link.Error || Allocator.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Paragraph.Block.init(alloc);
-    errdefer el.deinit(alloc);
     while (l.peek()) |next| switch (next.kind) {
         .strong_delimiter => return el.element(),
         .weak_delimiter => {
@@ -31,19 +30,10 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
 
 pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
     var line = try Element.Empty.init(alloc);
-    errdefer line.deinit(alloc);
     while (l.peek()) |next| switch (next.kind) {
         .weak_delimiter, .strong_delimiter => return line.element(),
-        .link => {
-            var el = try link.parse(alloc, l);
-            errdefer el.deinit(alloc);
-            try line.content.append(alloc, el);
-        },
-        else => {
-            var el = try content.parse(alloc, l);
-            errdefer el.deinit(alloc);
-            try line.content.append(alloc, el);
-        },
+        .link => try line.content.append(alloc, try link.parse(alloc, l)),
+        else => try line.content.append(alloc, try content.parse(alloc, l)),
     };
     return line.element();
 }

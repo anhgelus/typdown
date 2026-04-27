@@ -26,17 +26,7 @@ pub const Link = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .deinit = destroy, .html = html } };
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
-        destroy(self, alloc);
-    }
-
-    fn destroy(context: *anyopaque, alloc: Allocator) void {
-        var self: *Self = @ptrCast(@alignCast(context));
-        self.content.deinit(alloc);
-        alloc.destroy(self);
+        return .{ .ptr = self, .vtable = .{ .html = html } };
     }
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
@@ -59,14 +49,15 @@ fn doTest(alloc: Allocator, el: Element, exp: []const u8) !void {
 }
 
 test "paragraph" {
-    const alloc = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const alloc = arena.allocator();
 
     const lit = (try Element.Literal.init(alloc, "hello world")).element();
     try doTest(alloc, lit, "hello world");
 
     var p = try Block.init(alloc);
     try p.content.append(alloc, lit);
-    defer p.deinit(alloc);
     try doTest(alloc, p.element(), "<p>hello world</p>");
 
     const link = (try Link.init(alloc, (try Element.Literal.init(alloc, "foo")).element(), "example.org")).element();

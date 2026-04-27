@@ -12,14 +12,12 @@ pub const Error = paragraph.Error || Allocator.Error;
 
 pub fn parseOrdored(alloc: Allocator, l: *Lexer) Error!Element {
     const el = try Element.list.Ordored.init(alloc);
-    errdefer el.deinit(alloc);
     try parse(alloc, &el.content, l, .list_ordored);
     return el.element();
 }
 
 pub fn parseUnordored(alloc: Allocator, l: *Lexer) Error!Element {
     const el = try Element.list.Unordored.init(alloc);
-    errdefer el.deinit(alloc);
     try parse(alloc, &el.content, l, .list_unordored);
     return el.element();
 }

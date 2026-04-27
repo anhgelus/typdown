@@ -17,16 +17,7 @@ pub fn init(alloc: Allocator, src: []const u8) !*Self {
 }
 
 pub fn element(self: *Self) Element {
-    return .{ .ptr = self, .vtable = .{ .deinit = destroy, .html = html } };
-}
-
-pub fn deinit(self: *Self, alloc: Allocator) void {
-    destroy(self, alloc);
-}
-
-fn destroy(context: *anyopaque, alloc: Allocator) void {
-    const self: *Self = @ptrCast(@alignCast(context));
-    alloc.destroy(self);
+    return .{ .ptr = self, .vtable = .{ .html = html } };
 }
 
 fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
@@ -38,12 +29,13 @@ fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
 }
 
 test "html" {
-    const alloc = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    var alloc = arena.allocator();
     const expect = std.testing.expect;
     const eql = std.mem.eql;
 
     var img = try init(alloc, "foo");
-    defer img.deinit(alloc);
     const h = try img.element().renderHTML(alloc);
     defer alloc.free(h);
     try expect(eql(u8, h, "<img src=\"foo\">"));

@@ -25,7 +25,6 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     const code = try Element.Code.init(alloc);
     code.attribute = data;
     const el = try Element.Figure.init(alloc, code.element());
-    errdefer el.deinit(alloc);
     while (l.next()) |it| {
         if (it.kind == .code_block) return Error.InvalidCodeBlock;
         if (it.kind.isDelimiter()) {

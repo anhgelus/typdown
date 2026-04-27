@@ -19,25 +19,7 @@ pub const Error = error{FeatureNotSupported} ||
     code.Error ||
     Allocator.Error;
 
-pub const Document = struct {
-    arena: std.heap.ArenaAllocator,
-    root: []Element,
-
-    pub fn renderHTML(self: @This(), alloc: Allocator) Element.HTML.Error![]const u8 {
-        var content = try std.ArrayList(u8).initCapacity(alloc, self.root.len * 6);
-        errdefer content.deinit(alloc);
-        for (self.root) |it| {
-            const v = try it.renderHTML(alloc);
-            defer alloc.free(v);
-            try content.appendSlice(alloc, v);
-        }
-        return content.toOwnedSlice(alloc);
-    }
-
-    pub fn deinit(self: @This()) void {
-        self.arena.deinit();
-    }
-};
+pub const Document = *Element.Root;
 
 pub fn parseReader(parent: Allocator, r: *std.io.Reader) !Document {
     var l = try Lexer.initReader(parent, r);
@@ -51,13 +33,11 @@ pub fn parse(parent: Allocator, content: []const u8) Error!Document {
 }
 
 fn gen(parent: Allocator, l: *Lexer) Error!Document {
-    var arena = std.heap.ArenaAllocator.init(parent);
-    const alloc = arena.allocator();
-    errdefer arena.deinit();
-
-    var elements = try std.ArrayList(Element).initCapacity(alloc, 2);
+    var root = try Element.Root.init(parent);
+    errdefer root.deinit();
+    const alloc = root.allocator();
     base: while (l.peek()) |it| {
-        try elements.append(alloc, switch (it.kind) {
+        try root.append(switch (it.kind) {
             // other blocks
             .title => try title.parse(alloc, l),
             .list_ordored => try list.parseOrdored(alloc, l),
@@ -76,7 +56,7 @@ fn gen(parent: Allocator, l: *Lexer) Error!Document {
                 return Error.FeatureNotSupported,
         });
     }
-    return .{ .root = try elements.toOwnedSlice(alloc), .arena = arena };
+    return root;
 }
 
 fn doTest(alloc: Allocator, t: []const u8, v: []const u8) !void {

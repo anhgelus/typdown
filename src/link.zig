@@ -18,7 +18,6 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     if (v.kind != .link) return Error.InvalidLink;
     if (!eql(u8, v.content, "[")) return (try Element.Literal.init(alloc, v.content)).element();
     var el = try Element.Empty.init(alloc);
-    errdefer el.deinit(alloc);
     while (l.peek()) |next| switch (next.kind) {
         .weak_delimiter, .strong_delimiter => return Error.InvalidLink,
         .link => {
@@ -35,14 +34,10 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     if (href.kind != .literal) return Error.InvalidLink;
     const finisher = l.next() orelse return Error.InvalidLink;
     if (!finisher.equals(.link, ")")) return Error.InvalidLink;
-    var in: Element = undefined;
-    if (el.content.items.len > 0) {
-        in = el.element();
-    } else {
-        el.deinit(alloc);
-        in = (try Element.Literal.init(alloc, href.content)).element();
-    }
-    errdefer in.deinit(alloc);
+    const in: Element = if (el.content.items.len > 0) 
+        el.element()
+     else 
+        (try Element.Literal.init(alloc, href.content)).element();
     return (try Link.init(alloc, in, href.content)).element();
 }
 
@@ -69,10 +64,8 @@ pub fn parseImage(alloc: Allocator, l: *Lexer) ImageError!Element {
     it = l.next() orelse return ImageError.InvalidImage;
     if (!it.equals(.link, ")")) return ImageError.InvalidImage;
     const img = try Element.Image.init(alloc, src);
-    errdefer img.deinit(alloc);
     img.alt = alt;
     const el = try Element.Figure.init(alloc, img.element());
-    errdefer el.deinit(alloc);
     it = l.peek() orelse return el.element();
     switch (it.kind) {
         .strong_delimiter => return el.element(),
@@ -80,7 +73,6 @@ pub fn parseImage(alloc: Allocator, l: *Lexer) ImageError!Element {
         else => return ImageError.InvalidImage,
     }
     const p = try paragraph.parse(alloc, l);
-    errdefer p.deinit(alloc);
     const p_el: *Element.paragraph.Block = @ptrCast(@alignCast(p.ptr));
     el.caption = (try p_el.toEmpty(alloc)).element();
     return el.element();

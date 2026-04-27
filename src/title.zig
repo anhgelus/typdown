@@ -16,7 +16,6 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         paragraph.Error.IllegalPlacement => return Error.InvalidTitleContent,
         else => return err,
     });
-    errdefer el.deinit(alloc);
     var next = l.next() orelse return el.element();
     if (!next.kind.isDelimiter()) return Error.InvalidTitleContent;
     return el.element();

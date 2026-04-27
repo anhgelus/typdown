@@ -15,17 +15,7 @@ pub fn init(alloc: Allocator, level: u3, content: Parent) !*Self {
 }
 
 pub fn element(self: *Self) Parent {
-    return .{ .ptr = self, .vtable = .{ .deinit = destroy, .html = html } };
-}
-
-pub fn deinit(self: *Self, alloc: Allocator) void {
-    self.element().deinit(alloc);
-}
-
-fn destroy(context: *anyopaque, alloc: Allocator) void {
-    var self: *Self = @ptrCast(@alignCast(context));
-    self.content.deinit(alloc);
-    alloc.destroy(self);
+    return .{ .ptr = self, .vtable = .{ .html = html } };
 }
 
 fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {

@@ -16,18 +16,7 @@ pub const Code = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .deinit = destroy, .html = Self.html } };
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
-        destroy(self, alloc);
-    }
-
-    fn destroy(context: *anyopaque, alloc: Allocator) void {
-        var self: *Self = @ptrCast(@alignCast(context));
-        for (self.content.items) |it| it.deinit(alloc);
-        self.content.deinit(alloc);
-        alloc.destroy(self);
+        return .{ .ptr = self, .vtable = .{ .html = Self.html } };
     }
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
@@ -54,18 +43,7 @@ pub const Figure = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .deinit = destroy, .html = Self.html } };
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
-        destroy(self, alloc);
-    }
-
-    fn destroy(context: *anyopaque, alloc: Allocator) void {
-        const self: *Self = @ptrCast(@alignCast(context));
-        self.content.deinit(alloc);
-        if (self.caption) |cap| cap.deinit(alloc);
-        alloc.destroy(self);
+        return .{ .ptr = self, .vtable = .{ .html = Self.html } };
     }
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {

@@ -5,6 +5,7 @@ pub const paragraph = @import("paragraph.zig");
 pub const Title = @import("Title.zig");
 pub const list = @import("list.zig");
 pub const Image = @import("Image.zig");
+pub const Root = @import("Root.zig");
 const blocks = @import("blocks.zig");
 pub const Code = blocks.Code;
 pub const Figure = blocks.Figure;
@@ -12,7 +13,6 @@ pub const Figure = blocks.Figure;
 const Element = @This();
 
 vtable: struct {
-    deinit: *const fn (*anyopaque, Allocator) void,
     html: *const fn (*anyopaque, Allocator) HTML.Error!HTML,
 },
 ptr: *anyopaque,
@@ -22,10 +22,6 @@ pub fn renderHTML(self: Element, alloc: Allocator) HTML.Error![]const u8 {
     defer root.deinit();
     var el = try self.vtable.html(self.ptr, root.allocator());
     return el.render(alloc);
-}
-
-pub fn deinit(self: Element, alloc: Allocator) void {
-    self.vtable.deinit(self.ptr, alloc);
 }
 
 pub fn html(self: Element, alloc: Allocator) HTML.Error!HTML {
@@ -44,18 +40,7 @@ pub const Empty = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .deinit = destroy, .html = Self.html } };
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
-        destroy(self, alloc);
-    }
-
-    fn destroy(context: *anyopaque, alloc: Allocator) void {
-        const self: *Self = @ptrCast(@alignCast(context));
-        for (self.content.items) |it| it.deinit(alloc);
-        self.content.deinit(alloc);
-        alloc.destroy(self);
+        return .{ .ptr = self, .vtable = .{ .html = Self.html } };
     }
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
@@ -79,16 +64,7 @@ pub const Literal = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .deinit = destroy, .html = Self.html } };
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
-        destroy(self, alloc);
-    }
-
-    fn destroy(context: *anyopaque, alloc: Allocator) void {
-        const self: *Self = @ptrCast(@alignCast(context));
-        alloc.destroy(self);
+        return .{ .ptr = self, .vtable = .{ .html = Self.html } };
     }
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
@@ -110,11 +86,7 @@ pub fn Simple(comptime tag: []const u8) type {
         }
 
         pub fn element(self: *Self) Element {
-            return .{ .ptr = self, .vtable = .{ .deinit = destroy, .html = Self.html } };
-        }
-
-        pub fn deinit(self: *Self, alloc: Allocator) void {
-            destroy(self, alloc);
+            return .{ .ptr = self, .vtable = .{ .html = Self.html } };
         }
 
         pub fn toTag(self: *Self, alloc: Allocator, comptime target: []const u8) !*Simple(target) {
@@ -132,13 +104,6 @@ pub fn Simple(comptime tag: []const u8) type {
         fn conv(self: *Self, alloc: Allocator, arr: *std.ArrayList(Element)) void {
             arr.deinit(alloc);
             arr.* = self.content;
-            alloc.destroy(self);
-        }
-
-        fn destroy(context: *anyopaque, alloc: Allocator) void {
-            var self: *Self = @ptrCast(@alignCast(context));
-            for (self.content.items) |it| it.deinit(alloc);
-            self.content.deinit(alloc);
             alloc.destroy(self);
         }
 

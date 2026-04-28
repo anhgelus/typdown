@@ -22,7 +22,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         .weak_delimiter => {
             l.consume();
             const future = l.peek() orelse return el.element();
-            if (!future.kind.isPar()) return el.element();
+            if (!future.kind.isInParagraph()) return el.element();
             root.append((try Element.Literal.init(alloc, " ")).element());
         },
         else => root.append(try parseLine(alloc, l)),

@@ -138,3 +138,44 @@ pub const Callout = struct {
         return el.element();
     }
 };
+
+pub const Quote = struct {
+    content: Element,
+    attribution: ?Element = null,
+    node: Node = .{
+        .ptr = undefined,
+        .vtable = .{ .element = fromNode },
+    },
+
+    const Self = @This();
+
+    pub fn init(alloc: Allocator, content: Element) !*Self {
+        const v = try alloc.create(Self);
+        v.* = .{ .content = content };
+        v.node.ptr = v;
+        return v;
+    }
+
+    pub fn element(self: *Self) Element {
+        return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
+    }
+
+    fn getNode(context: *anyopaque) *Node {
+        const self: *Self = @ptrCast(@alignCast(context));
+        return &self.node;
+    }
+
+    fn fromNode(context: *anyopaque) Element {
+        const self: *Self = @ptrCast(@alignCast(context));
+        return self.element();
+    }
+
+    fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
+        const self: *Self = @ptrCast(@alignCast(context));
+        const quote = try Element.Simple("blockquote").init(alloc);
+        quote.content = self.content;
+        var el = try Figure.init(alloc, quote.element());
+        el.caption = self.attribution;
+        return try el.element().html(alloc);
+    }
+};

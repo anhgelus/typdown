@@ -9,6 +9,7 @@ const link = @import("link.zig");
 const list = @import("list.zig");
 const code = @import("code.zig");
 const callout = @import("callout.zig");
+const quote = @import("quote.zig");
 
 pub const Error = error{FeatureNotSupported} ||
     Lexer.Error ||
@@ -19,6 +20,7 @@ pub const Error = error{FeatureNotSupported} ||
     link.ImageError ||
     code.Error ||
     callout.Error ||
+    quote.Error ||
     Allocator.Error;
 
 pub const Document = Element.Root;
@@ -46,13 +48,14 @@ fn gen(parent: Allocator, l: *Lexer) Error!*Document {
             .list_unordored => try list.parseUnordored(alloc, l),
             .image => try link.parseImage(alloc, l),
             .code_block => try code.parse(alloc, l),
+            .quote => try quote.parse(alloc, l),
             .weak_delimiter, .strong_delimiter => {
                 l.consume();
                 continue :base;
             },
             else =>
             // block paragraph
-            if (it.kind.isPar())
+            if (it.kind.isInParagraph())
                 try paragraph.parse(alloc, l)
             else
                 return Error.FeatureNotSupported,

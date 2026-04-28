@@ -28,7 +28,7 @@ pub const Kind = enum {
         };
     }
 
-    pub inline fn isPar(self: @This()) bool {
+    pub inline fn isInParagraph(self: @This()) bool {
         return switch (self) {
             .literal, .link, .code, .math, .bold, .italic, .ref => true,
             else => false,

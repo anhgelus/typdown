@@ -10,6 +10,7 @@ const blocks = @import("blocks.zig");
 pub const Code = blocks.Code;
 pub const Figure = blocks.Figure;
 pub const Callout = blocks.Callout;
+pub const Quote = blocks.Quote;
 
 pub const Node = struct {
     ptr: *anyopaque,

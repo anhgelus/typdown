@@ -41,6 +41,13 @@ pub const Kind = enum {
             else => false,
         };
     }
+
+    pub inline fn trimSpace(self: @This()) bool {
+        return switch (self) {
+            .quote, .callout, .code_block => true,
+            else => return self.requiresSpace(),
+        };
+    }
 };
 
 kind: Kind,

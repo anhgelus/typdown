@@ -52,7 +52,7 @@ pub fn next(self: *Self) ?Token {
         }
         self.new_line = current_kind.?.isDelimiter();
         // conds here to avoid creating complex condition in while
-        const next_rune = self.iter.peek(1);
+        var next_rune = self.iter.peek(1);
         const next_kind = self.getCurrentKind(current_kind, next_rune, self.content[beg..end]).kind;
         if (current_kind.?.requiresSpace() and next_kind != current_kind.?) {
             if (eql(u8, next_rune, " ")) {
@@ -64,6 +64,9 @@ pub fn next(self: *Self) ?Token {
                 .title => if (end - beg == 1) .tag else .literal,
                 else => .literal,
             };
+        }
+        if (current_kind.?.trimSpace()) {
+            while (eql(u8, next_rune, " ")) : (next_rune = self.iter.peek(1)) _ = self.iter.nextCodepoint();
         }
         if (next_rune.len > 0 and
             next_kind != current_kind.? and
@@ -285,4 +288,19 @@ test "peek and consume" {
     try expect(l.peek().?.equals(.bold, "*"));
     try expect(l.next().?.equals(.bold, "*"));
     try expect(l.next() == null);
+}
+
+test "trim space" {
+    const expect = std.testing.expect;
+
+    var l = try init(
+        \\> hello
+        \\>    world
+    );
+
+    try expect(l.next().?.equals(.quote, ">"));
+    try expect(l.next().?.equals(.literal, "hello"));
+    try expect(l.next().?.equals(.weak_delimiter, "\n"));
+    try expect(l.next().?.equals(.quote, ">"));
+    try expect(l.next().?.equals(.literal, "world"));
 }

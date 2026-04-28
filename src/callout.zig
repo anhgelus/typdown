@@ -64,7 +64,7 @@ test "callout" {
         \\:::
     , "<div data-callout=\"info\" class=\"callout\"><p>hey</p></div>");
     try doTest(parse, alloc,
-        \\:::info Title
+        \\::: info Title
         \\hey
         \\:::
     , "<div data-callout=\"info\" class=\"callout\"><p>hey</p></div>");

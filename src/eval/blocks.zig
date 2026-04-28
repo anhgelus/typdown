@@ -24,8 +24,10 @@ pub const Code = struct {
         var el = try HTML.Content.init(alloc, "pre");
         if (self.attribute) |attr| try el.base.setAttribute("data-code", attr);
         var code = try HTML.Content.init(alloc, "code");
-        for (self.content.items) |it| try code.append(try it.html(alloc));
-        try el.append(code.element());
+        var root = try HTML.Root.init(alloc);
+        for (self.content.items) |it| root.append(try it.html(root.allocator()));
+        code.content = root.element();
+        el.content = code.element();
         return el.element();
     }
 };
@@ -46,14 +48,17 @@ pub const Figure = struct {
         return .{ .ptr = self, .vtable = .{ .html = Self.html } };
     }
 
-    fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
+    fn html(context: *anyopaque, parent: Allocator) HTML.Error!HTML {
         const self: *Self = @ptrCast(@alignCast(context));
-        var el = try HTML.Content.init(alloc, "figure");
-        try el.append(try self.content.html(alloc));
+        var el = try HTML.Content.init(parent, "figure");
+        var root = try HTML.Root.init(parent);
+        const alloc = root.allocator();
+        root.append(try self.content.html(alloc));
+        el.content = root.element();
         const caption = self.caption orelse return el.element();
         var figcap = try HTML.Content.init(alloc, "figcaption");
-        try figcap.append(try caption.html(alloc));
-        try el.append(figcap.element());
+        figcap.content = try caption.html(alloc);
+        root.append(figcap.element());
         return el.element();
     }
 };
@@ -80,7 +85,7 @@ pub const Callout = struct {
         var el = try HTML.Content.init(alloc, "div");
         try el.base.appendClass("callout");
         if (self.kind) |kind| try el.base.setAttribute("data-callout", kind);
-        try el.append(try self.content.html(alloc));
+        el.content = try self.content.html(alloc);
         return el.element();
     }
 };

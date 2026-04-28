@@ -3,12 +3,17 @@ const Allocator = std.mem.Allocator;
 const List = std.ArrayList;
 const html = @import("html.zig");
 const Element = @import("Element.zig");
+const Node = Element.Node;
 const Error = Element.Error;
 
 alloc: Allocator,
 tag: []const u8,
 attributes: std.StringArrayHashMap([]const u8),
 class_list: std.BufSet,
+node: Node = .{
+    .ptr = undefined,
+    .vtable = .{ .element = fromNode },
+},
 
 pub const Self = @This();
 
@@ -20,11 +25,12 @@ pub fn init(alloc: Allocator, tag: []const u8) Error!*Self {
         .attributes = .init(alloc),
         .class_list = .init(alloc),
     };
+    v.node.ptr = v;
     return v;
 }
 
 pub fn element(self: *Self) Element {
-    return .{ .vtable = .{ .render = Self.render }, .ptr = self };
+    return .{ .vtable = .{ .render = render, .node = getNode }, .ptr = self };
 }
 
 pub fn setAttribute(self: *Self, k: []const u8, v: []const u8) Error!void {
@@ -49,6 +55,16 @@ pub fn hasClass(self: *Self, v: []const u8) bool {
 
 pub fn removeClass(self: *Self, v: []const u8) void {
     self.class_list.remove(v);
+}
+
+fn getNode(context: *anyopaque) *Node {
+    const self: *Self = @ptrCast(@alignCast(context));
+    return &self.node;
+}
+
+fn fromNode(context: *anyopaque) Element {
+    const self: *Self = @ptrCast(@alignCast(context));
+    return self.element();
 }
 
 fn render(context: *anyopaque, alloc: Allocator) Error![]const u8 {

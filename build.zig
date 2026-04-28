@@ -37,6 +37,7 @@ pub fn build(b: *std.Build) void {
 
     const mod_tests = b.addTest(.{
         .root_module = mod,
+        .use_llvm = true, // zig internal backend crashes during linking (for 0.15.2)
     });
     const run_mod_tests = b.addRunArtifact(mod_tests);
 

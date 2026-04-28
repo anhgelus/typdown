@@ -4,6 +4,10 @@ const Allocator = std.mem.Allocator;
 const parser = @import("parser.zig");
 pub const Document = parser.Document;
 pub const Error = parser.Error;
+/// Parse the content.
+///
+/// Use typdown_parse if you are not in Zig.
+pub const parse = parser.parse;
 
 inline fn getErrorCode(err: Error) u8 {
     return switch (err) {
@@ -70,14 +74,7 @@ export fn typdown_parse(content: [*:0]const u8, code: *u8) ?[*:0]const u8 {
     };
 }
 
-/// Parse the content.
-///
-/// Use parse if you are not in Zig.
-pub fn parse(alloc: std.mem.Allocator, content: []const u8) Error!Document {
-    return parser.parse(alloc, content);
-}
-
-pub fn parseReader(alloc: std.mem.Allocator, r: *std.io.Reader) (Error || std.io.Reader.Error)!Document {
+pub fn parseReader(alloc: std.mem.Allocator, r: *std.io.Reader) (Error || std.io.Reader.Error)!*Document {
     return parser.parseReader(alloc, r);
 }
 

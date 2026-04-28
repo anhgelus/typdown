@@ -21,13 +21,15 @@ fn List(comptime tag: []const u8) type {
             return .{ .ptr = self, .vtable = .{ .html = html } };
         }
 
-       fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
+        fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
             const self: *Self = @ptrCast(@alignCast(context));
             var el = try HTML.Content.init(alloc, tag);
+            var root = try HTML.Root.init(alloc);
+            el.content = root.element();
             for (self.content.items) |it| {
-                var li = try HTML.Content.init(alloc, "li");
-                try li.append(try it.html(alloc));
-                try el.append(li.element());
+                var li = try HTML.Content.init(root.allocator(), "li");
+                li.content = try it.html(root.allocator());
+                root.append(li.element());
             }
             return el.element();
         }

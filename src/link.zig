@@ -34,9 +34,9 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     if (href.kind != .literal) return Error.InvalidLink;
     const finisher = l.next() orelse return Error.InvalidLink;
     if (!finisher.equals(.link, ")")) return Error.InvalidLink;
-    const in: Element = if (el.content.items.len > 0) 
+    const in: Element = if (el.content.items.len > 0)
         el.element()
-     else 
+    else
         (try Element.Literal.init(alloc, href.content)).element();
     return (try Link.init(alloc, in, href.content)).element();
 }

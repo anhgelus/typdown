@@ -1,11 +1,15 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const List = std.ArrayList;
 const Element = @import("Element.zig");
+const Node = Element.Node;
 const Error = Element.Error;
 
 base: Element.Void,
-content: List(Element),
+content: ?Element = null,
+node: Node = .{
+    .ptr = undefined,
+    .vtable = .{ .element = fromNode },
+},
 
 pub const Self = @This();
 
@@ -18,17 +22,23 @@ pub fn init(alloc: Allocator, tag: []const u8) Error!*Self {
             .attributes = .init(alloc),
             .class_list = .init(alloc),
         },
-        .content = try .initCapacity(alloc, 2),
     };
+    v.node.ptr = v;
     return v;
 }
 
 pub fn element(self: *Self) Element {
-    return .{ .vtable = .{ .render = Self.render }, .ptr = self };
+    return .{ .vtable = .{ .render = render, .node = getNode }, .ptr = self };
 }
 
-pub fn append(self: *Self, content: Element) Error!void {
-    return self.content.append(self.base.alloc, content);
+fn getNode(context: *anyopaque) *Node {
+    const self: *Self = @ptrCast(@alignCast(context));
+    return &self.node;
+}
+
+fn fromNode(context: *anyopaque) Element {
+    const self: *Self = @ptrCast(@alignCast(context));
+    return self.element();
 }
 
 fn render(context: *anyopaque, alloc: Allocator) Error![]const u8 {
@@ -36,14 +46,15 @@ fn render(context: *anyopaque, alloc: Allocator) Error![]const u8 {
     var base = self.base;
     const b = try base.element().render(alloc);
     defer alloc.free(b);
-    var acc = try List(u8).initCapacity(alloc, b.len + self.content.items.len);
+    var acc = try std.ArrayList(u8).initCapacity(alloc, b.len * 2);
     try acc.appendSlice(alloc, b);
-    for (self.content.items) |it| {
-        var v = it;
-        const sub = try v.render(alloc);
+
+    if (self.content) |it| {
+        const sub = try it.render(alloc);
         defer alloc.free(sub);
         try acc.appendSlice(alloc, sub);
     }
+
     try acc.appendSlice(alloc, "</");
     try acc.appendSlice(alloc, base.tag);
     try acc.append(alloc, '>');

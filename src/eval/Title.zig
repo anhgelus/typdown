@@ -29,6 +29,6 @@ fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
         6 => "h6",
         else => unreachable,
     });
-    try el.append(try self.content.html(alloc));
+    el.content = try self.content.html(alloc);
     return el.element();
 }

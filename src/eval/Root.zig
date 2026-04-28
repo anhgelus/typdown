@@ -44,10 +44,7 @@ pub fn renderHTML(self: *Self, alloc: Allocator) HTML.Error![]const u8 {
 fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
     const self: *Self = @ptrCast(@alignCast(context));
     const el = try HTML.Root.init(alloc);
-    errdefer el.deinit();
     if (self.content.items.len == 0) return el.element();
-    for (self.content.items) |it| {
-        try el.append(try it.html(el.allocator()));
-    }
+    for (self.content.items) |it| el.append(try it.html(el.allocator()));
     return el.element();
 }

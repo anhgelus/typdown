@@ -48,7 +48,7 @@ pub const Empty = struct {
         const self: *Self = @ptrCast(@alignCast(context));
         var el = try HTML.Root.init(alloc);
         errdefer el.deinit();
-        for (self.content.items) |it| try el.append(try it.html(el.allocator()));
+        for (self.content.items) |it| el.append(try it.html(el.allocator()));
         return el.element();
     }
 };
@@ -111,7 +111,9 @@ pub fn Simple(comptime tag: []const u8) type {
         fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
             const self: *Self = @ptrCast(@alignCast(context));
             var el = try HTML.Content.init(alloc, tag);
-            for (self.content.items) |it| try el.append(try it.html(alloc));
+            var root = try HTML.Root.init(alloc);
+            el.content = root.element();
+            for (self.content.items) |it| root.append(try it.html(root.allocator()));
             return el.element();
         }
     };

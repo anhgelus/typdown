@@ -32,7 +32,7 @@ pub const Link = struct {
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
         const self: *Self = @ptrCast(@alignCast(context));
         var el = try HTML.Content.init(alloc, "a");
-        try el.append(try self.content.html(alloc));
+        el.content = try self.content.html(alloc);
         try el.base.setAttribute("href", self.link);
         if (self.target) |target| try el.base.setAttribute("target", target);
         return el.element();

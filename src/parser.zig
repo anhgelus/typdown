@@ -21,21 +21,21 @@ pub const Error = error{FeatureNotSupported} ||
     callout.Error ||
     Allocator.Error;
 
-pub const Document = *Element.Root;
+pub const Document = Element.Root;
 
-pub fn parseReader(parent: Allocator, r: *std.io.Reader) !Document {
+pub fn parseReader(parent: Allocator, r: *std.io.Reader) !*Document {
     var l = try Lexer.initReader(parent, r);
     defer parent.free(l.iter.bytes);
     return gen(parent, &l);
 }
 
-pub fn parse(parent: Allocator, content: []const u8) Error!Document {
+pub fn parse(parent: Allocator, content: []const u8) Error!*Document {
     var l = try Lexer.init(content);
     return gen(parent, &l);
 }
 
-fn gen(parent: Allocator, l: *Lexer) Error!Document {
-    var root = try Element.Root.init(parent);
+fn gen(parent: Allocator, l: *Lexer) Error!*Document {
+    var root = try Document.init(parent);
     errdefer root.deinit();
     const alloc = root.allocator();
     base: while (l.peek()) |it| {
@@ -75,6 +75,7 @@ fn doTest(alloc: Allocator, t: []const u8, v: []const u8) !void {
 test "parse multilines" {
     const alloc = std.testing.allocator;
 
+    try doTest(alloc, "hello world", "<p>hello world</p>");
     try doTest(alloc,
         \\hello
         \\world

@@ -1,24 +1,25 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Arena = std.heap.ArenaAllocator;
-const List = std.ArrayList;
 const Element = @import("Element.zig");
+const Node = Element.Node;
 const Error = Element.Error;
 
-content: List(Element),
+content: std.DoublyLinkedList = .{},
 arena: Arena,
+node: Node = .{
+    .ptr = undefined,
+    .vtable = .{ .element = fromNode },
+},
 
 const Self = @This();
 
 pub fn init(parent: Allocator) Error!*Self {
-    var s = Self{
-        .content = undefined,
-        .arena = .init(parent),
-    };
+    var s = Self{ .arena = .init(parent) };
     var alloc = s.arena.allocator();
-    s.content = try .initCapacity(alloc, 2);
     const v = try alloc.create(Self);
     v.* = s;
+    v.node.ptr = v;
     return v;
 }
 
@@ -27,28 +28,39 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn element(self: *Self) Element {
-    return .{ .vtable = .{ .render = Self.render, }, .ptr = self };
+    return .{ .vtable = .{
+        .render = render,
+        .node = getNode,
+    }, .ptr = self };
 }
 
 pub fn allocator(self: *Self) Allocator {
     return self.arena.allocator();
 }
 
-pub fn append(self: *Self, el: Element) Error!void {
-    try self.content.append(self.allocator(), el);
+pub fn append(self: *Self, el: Element) void {
+    self.content.append(&el.node().node);
+}
+
+fn getNode(context: *anyopaque) *Node {
+    const self: *Self = @ptrCast(@alignCast(context));
+    return &self.node;
+}
+
+fn fromNode(context: *anyopaque) Element {
+    const self: *Self = @ptrCast(@alignCast(context));
+    return self.element();
 }
 
 fn render(context: *anyopaque, alloc: Allocator) Error![]const u8 {
     const self: *Self = @ptrCast(@alignCast(context));
-    if (self.content.items.len == 0) return "";
-    var acc = try List(u8).initCapacity(alloc, self.content.items.len);
+    if (self.content.first == null) return "";
+    var acc = try std.ArrayList(u8).initCapacity(alloc, 8);
     errdefer acc.deinit(alloc);
 
     var arena = Arena.init(alloc);
     defer arena.deinit();
-    for (self.content.items) |it| {
-        const res = try it.render(arena.allocator());
-        try acc.appendSlice(alloc, res);
-    }
+    var v = self.content.first;
+    while (v) |it| : (v = it.next) try acc.appendSlice(alloc, try Node.from(it).element().render(arena.allocator()));
     return acc.toOwnedSlice(alloc);
 }

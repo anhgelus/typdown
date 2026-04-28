@@ -57,17 +57,17 @@ test "callout" {
         \\:::
         \\hey
         \\:::
-    , "<div class=\"callout\"><p>hey</p></div>");
+    , "<div data-callout=\"default\" class=\"callout\"><h4>default</h4><p>hey</p></div>");
     try doTest(parse, alloc,
         \\:::info
         \\hey
         \\:::
-    , "<div data-callout=\"info\" class=\"callout\"><p>hey</p></div>");
+    , "<div data-callout=\"info\" class=\"callout\"><h4>info</h4><p>hey</p></div>");
     try doTest(parse, alloc,
         \\::: info Title
         \\hey
         \\:::
-    , "<div data-callout=\"info\" class=\"callout\"><p>hey</p></div>");
+    , "<div data-callout=\"info\" class=\"callout\"><h4>Title</h4><p>hey</p></div>");
     // cannot test content with \n
 
     try doTestError(parse, alloc, ":::", Error.InvalidCallout);

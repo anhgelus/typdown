@@ -133,8 +133,14 @@ pub const Callout = struct {
         const self: *Self = @ptrCast(@alignCast(context));
         var el = try HTML.Content.init(alloc, "div");
         try el.base.appendClass("callout");
-        if (self.kind) |kind| try el.base.setAttribute("data-callout", kind);
-        el.content = try self.content.html(alloc);
+        const kind = self.kind orelse "default";
+        try el.base.setAttribute("data-callout", kind);
+        const root = try HTML.Root.init(alloc);
+        const title = try HTML.Content.init(alloc, "h4");
+        title.content = (try HTML.Literal.init(alloc, self.title orelse kind)).element();
+        root.append(title.element());
+        root.append(try self.content.html(alloc));
+        el.content = root.element();
         return el.element();
     }
 };

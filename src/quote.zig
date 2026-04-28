@@ -26,7 +26,8 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         .strong_delimiter => break,
         else => root.append(try paragraph.parseLine(alloc, l)),
     };
-    const el = try Element.Quote.init(alloc, root.element());
+    const quote = try Element.Quote.init(alloc, root.element());
+    const el = try Element.Figure.init(alloc, quote.element());
     const v = l.peek() orelse return el.element();
     if (v.kind == .strong_delimiter) {
         l.consume();
@@ -34,7 +35,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     }
     const attr = try paragraph.parse(alloc, l);
     const p_el: *Element.paragraph.Block = @ptrCast(@alignCast(attr.ptr));
-    el.attribution = (try p_el.toRoot(alloc)).element();
+    el.caption = (try p_el.toRoot(alloc)).element();
     return el.element();
 }
 

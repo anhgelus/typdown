@@ -147,7 +147,6 @@ pub const Callout = struct {
 
 pub const Quote = struct {
     content: Element,
-    attribution: ?Element = null,
     node: Node = .{
         .ptr = undefined,
         .vtable = .{ .element = fromNode },
@@ -178,10 +177,8 @@ pub const Quote = struct {
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
         const self: *Self = @ptrCast(@alignCast(context));
-        const quote = try Element.Simple("blockquote").init(alloc);
-        quote.content = self.content;
-        var el = try Figure.init(alloc, quote.element());
-        el.caption = self.attribution;
-        return try el.element().html(alloc);
+        const quote = try HTML.Content.init(alloc, "blockquote");
+        quote.content = try self.content.html(alloc);
+        return quote.element();
     }
 };

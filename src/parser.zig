@@ -39,7 +39,7 @@ fn gen(parent: Allocator, l: *Lexer) Error!*Document {
     errdefer root.deinit();
     const alloc = root.allocator();
     base: while (l.peek()) |it| {
-        try root.append(switch (it.kind) {
+        root.append(switch (it.kind) {
             // other blocks
             .title => try title.parse(alloc, l),
             .list_ordored => try list.parseOrdored(alloc, l),

@@ -29,8 +29,8 @@ pub const Node = struct {
 const Self = @This();
 
 vtable: struct {
-    render: *const fn (self: *anyopaque, alloc: Allocator) Error![]const u8,
-    node: *const fn (self: *anyopaque) *Node,
+    render: *const fn (*anyopaque, Allocator) Error![]const u8,
+    node: *const fn (*anyopaque) *Node,
 },
 ptr: *anyopaque,
 

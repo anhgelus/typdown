@@ -39,7 +39,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
                 break;
             }
         }
-        try root.append(try paragraph.parse(root.allocator(), l));
+        root.append(try paragraph.parse(root.allocator(), l));
         _ = l.peek() orelse return Error.InvalidCallout;
     }
     var el = try Element.Callout.init(alloc, root.element());

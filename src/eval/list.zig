@@ -2,10 +2,15 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const HTML = Element.HTML;
 const Element = @import("Element.zig");
+const Node = Element.Node;
 
 fn List(comptime tag: []const u8) type {
     return struct {
         content: std.ArrayList(Element),
+        node: Node = .{
+            .ptr = undefined,
+            .vtable = .{ .element = fromNode },
+        },
 
         const Self = @This();
 
@@ -14,11 +19,22 @@ fn List(comptime tag: []const u8) type {
             v.* = .{
                 .content = try .initCapacity(alloc, 2),
             };
+            v.node.ptr = v;
             return v;
         }
 
         pub fn element(self: *Self) Element {
-            return .{ .ptr = self, .vtable = .{ .html = html } };
+            return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
+        }
+
+        fn getNode(context: *anyopaque) *Node {
+            const self: *Self = @ptrCast(@alignCast(context));
+            return &self.node;
+        }
+
+        fn fromNode(context: *anyopaque) Element {
+            const self: *Self = @ptrCast(@alignCast(context));
+            return self.element();
         }
 
         fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {

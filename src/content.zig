@@ -12,16 +12,16 @@ const doTestError = testing.doError;
 pub const Error = error{ ModifierNotClosed, IllegalPlacement } || Allocator.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
-    var content = try Element.Empty.init(alloc);
+    var content = try Element.Root.init(alloc);
     const v = l.next().?;
     switch (v.kind) {
         .literal => {
             const el = try Element.Literal.init(alloc, v.content);
-            try content.content.append(alloc, el.element());
+            content.append(el.element());
         },
-        .bold => try content.content.append(alloc, try parseModifier(alloc, l, .bold, "b")),
-        .italic => try content.content.append(alloc, try parseModifier(alloc, l, .italic, "em")),
-        .code => try content.content.append(alloc, try parseModifier(alloc, l, .code, "code")),
+        .bold => content.append(try parseModifier(alloc, l, .bold, "b")),
+        .italic => content.append(try parseModifier(alloc, l, .italic, "em")),
+        .code => content.append(try parseModifier(alloc, l, .code, "code")),
         else => return Error.IllegalPlacement,
     }
     return content.element();
@@ -29,6 +29,8 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
 
 fn parseModifier(alloc: Allocator, l: *Lexer, knd: Token.Kind, comptime tag: []const u8) Error!Element {
     var el = try Element.Simple(tag).init(alloc);
+    var root = try Element.Root.init(alloc);
+    el.content = root.element();
     while (l.peek()) |next| {
         if (next.kind == knd) {
             // consuming the finisher
@@ -36,7 +38,7 @@ fn parseModifier(alloc: Allocator, l: *Lexer, knd: Token.Kind, comptime tag: []c
             return el.element();
         }
         if (next.kind.isDelimiter()) return Error.ModifierNotClosed;
-        try el.content.append(alloc, try parse(alloc, l));
+        root.append(try parse(alloc, l));
     }
     return Error.ModifierNotClosed;
 }

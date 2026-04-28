@@ -11,10 +11,26 @@ pub const Code = blocks.Code;
 pub const Figure = blocks.Figure;
 pub const Callout = blocks.Callout;
 
+pub const Node = struct {
+    ptr: *anyopaque,
+    vtable: struct { element: *const fn (*anyopaque) Element },
+    node: std.DoublyLinkedList.Node = .{},
+
+    pub fn from(n: *std.DoublyLinkedList.Node) *Node {
+        const v: *Node = @fieldParentPtr("node", n);
+        return v;
+    }
+
+    pub fn element(self: Node) Element {
+        return self.vtable.element(self.ptr);
+    }
+};
+
 const Element = @This();
 
 vtable: struct {
     html: *const fn (*anyopaque, Allocator) HTML.Error!HTML,
+    node: *const fn (*anyopaque) *Node,
 },
 ptr: *anyopaque,
 
@@ -29,43 +45,38 @@ pub fn html(self: Element, alloc: Allocator) HTML.Error!HTML {
     return self.vtable.html(self.ptr, alloc);
 }
 
-pub const Empty = struct {
-    content: std.ArrayList(Element),
-
-    const Self = @This();
-
-    pub fn init(alloc: Allocator) !*Self {
-        const v = try alloc.create(Self);
-        v.* = .{ .content = try .initCapacity(alloc, 2) };
-        return v;
-    }
-
-    pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .html = Self.html } };
-    }
-
-    fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
-        const self: *Self = @ptrCast(@alignCast(context));
-        var el = try HTML.Root.init(alloc);
-        errdefer el.deinit();
-        for (self.content.items) |it| el.append(try it.html(el.allocator()));
-        return el.element();
-    }
-};
+pub fn node(self: Element) *Node {
+    return self.vtable.node(self.ptr);
+}
 
 pub const Literal = struct {
     content: []const u8,
+    node: Node = .{
+        .ptr = undefined,
+        .vtable = .{ .element = fromNode },
+    },
 
     const Self = @This();
 
     pub fn init(alloc: Allocator, content: []const u8) !*Self {
         const v = try alloc.create(Self);
         v.* = .{ .content = content };
+        v.node.ptr = v;
         return v;
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .html = Self.html } };
+        return .{ .ptr = self, .vtable = .{ .html = Self.html, .node = getNode } };
+    }
+
+    fn getNode(context: *anyopaque) *Node {
+        const self: *Self = @ptrCast(@alignCast(context));
+        return &self.node;
+    }
+
+    fn fromNode(context: *anyopaque) Element {
+        const self: *Self = @ptrCast(@alignCast(context));
+        return self.element();
     }
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
@@ -76,44 +87,49 @@ pub const Literal = struct {
 
 pub fn Simple(comptime tag: []const u8) type {
     return struct {
-        content: std.ArrayList(Element),
+        content: ?Element = null,
+        node: Node,
 
         const Self = @This();
 
         pub fn init(alloc: Allocator) !*Self {
             const v = try alloc.create(Self);
-            v.* = .{ .content = try .initCapacity(alloc, 2) };
+            v.node = .{ .ptr = v, .vtable = .{ .element = fromNode } };
             return v;
         }
 
         pub fn element(self: *Self) Element {
-            return .{ .ptr = self, .vtable = .{ .html = Self.html } };
+            return .{ .ptr = self, .vtable = .{ .html = Self.html, .node = getNode } };
         }
 
         pub fn toTag(self: *Self, alloc: Allocator, comptime target: []const u8) !*Simple(target) {
+            defer alloc.destroy(self);
             const el = try Simple(target).init(alloc);
-            self.conv(alloc, &el.content);
+            el.content = self.content;
             return el;
         }
 
-        pub fn toEmpty(self: *Self, alloc: Allocator) !*Empty {
-            const el = try Empty.init(alloc);
-            self.conv(alloc, &el.content);
+        pub fn toRoot(self: *Self, alloc: Allocator) !*Root {
+            defer alloc.destroy(self);
+            const el = try Root.init(alloc);
+            if (self.content) |it| el.append(it);
             return el;
         }
 
-        fn conv(self: *Self, alloc: Allocator, arr: *std.ArrayList(Element)) void {
-            arr.deinit(alloc);
-            arr.* = self.content;
-            alloc.destroy(self);
+        fn getNode(context: *anyopaque) *Node {
+            const self: *Self = @ptrCast(@alignCast(context));
+            return &self.node;
+        }
+
+        fn fromNode(context: *anyopaque) Element {
+            const self: *Self = @ptrCast(@alignCast(context));
+            return self.element();
         }
 
         fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
             const self: *Self = @ptrCast(@alignCast(context));
             var el = try HTML.Content.init(alloc, tag);
-            var root = try HTML.Root.init(alloc);
-            el.content = root.element();
-            for (self.content.items) |it| root.append(try it.html(root.allocator()));
+            if (self.content) |it| el.content = try it.html(alloc);
             return el.element();
         }
     };

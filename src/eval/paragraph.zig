@@ -2,6 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const HTML = Element.HTML;
 const Element = @import("Element.zig");
+const Node = Element.Node;
 
 pub const Block = Element.Simple("p");
 
@@ -13,6 +14,10 @@ pub const Link = struct {
     link: []const u8,
     content: Element,
     target: ?[]const u8 = null,
+    node: Node = .{
+        .ptr = undefined,
+        .vtable = .{ .element = fromNode },
+    },
 
     const Self = @This();
 
@@ -22,11 +27,22 @@ pub const Link = struct {
             .content = content,
             .link = link,
         };
+        v.node.ptr = v;
         return v;
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .html = html } };
+        return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
+    }
+
+    fn getNode(context: *anyopaque) *Node {
+        const self: *Self = @ptrCast(@alignCast(context));
+        return &self.node;
+    }
+
+    fn fromNode(context: *anyopaque) Element {
+        const self: *Self = @ptrCast(@alignCast(context));
+        return self.element();
     }
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
@@ -57,12 +73,14 @@ test "paragraph" {
     try doTest(alloc, lit, "hello world");
 
     var p = try Block.init(alloc);
-    try p.content.append(alloc, lit);
+    var root = try Element.Root.init(alloc);
+    p.content = root.element();
+    root.append(lit);
     try doTest(alloc, p.element(), "<p>hello world</p>");
 
     const link = (try Link.init(alloc, (try Element.Literal.init(alloc, "foo")).element(), "example.org")).element();
     try doTest(alloc, link, "<a href=\"example.org\">foo</a>");
 
-    try p.content.append(alloc, link);
+    root.append(link);
     try doTest(alloc, p.element(), "<p>hello world<a href=\"example.org\">foo</a></p>");
 }

@@ -2,21 +2,40 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const HTML = @import("html/Element.zig");
 const Element = @import("Element.zig");
+const Node = Element.Node;
 
 pub const Code = struct {
     content: std.ArrayList(Element),
     attribute: ?[]const u8 = null,
+    node: Node = .{
+        .ptr = undefined,
+        .vtable = .{ .element = fromNode },
+    },
 
     const Self = @This();
 
     pub fn init(alloc: Allocator) !*Self {
         const v = try alloc.create(Self);
         v.* = .{ .content = try .initCapacity(alloc, 2) };
+        v.node.ptr = v;
         return v;
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .html = Self.html } };
+        return .{ .ptr = self, .vtable = .{
+            .html = html,
+            .node = getNode,
+        } };
+    }
+
+    fn getNode(context: *anyopaque) *Node {
+        const self: *Self = @ptrCast(@alignCast(context));
+        return &self.node;
+    }
+
+    fn fromNode(context: *anyopaque) Element {
+        const self: *Self = @ptrCast(@alignCast(context));
+        return self.element();
     }
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
@@ -35,17 +54,32 @@ pub const Code = struct {
 pub const Figure = struct {
     content: Element,
     caption: ?Element = null,
+    node: Node = .{
+        .ptr = undefined,
+        .vtable = .{ .element = fromNode },
+    },
 
     const Self = @This();
 
     pub fn init(alloc: Allocator, content: Element) !*Self {
         const v = try alloc.create(Self);
         v.* = .{ .content = content };
+        v.node.ptr = v;
         return v;
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .html = Self.html } };
+        return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
+    }
+
+    fn getNode(context: *anyopaque) *Node {
+        const self: *Self = @ptrCast(@alignCast(context));
+        return &self.node;
+    }
+
+    fn fromNode(context: *anyopaque) Element {
+        const self: *Self = @ptrCast(@alignCast(context));
+        return self.element();
     }
 
     fn html(context: *anyopaque, parent: Allocator) HTML.Error!HTML {
@@ -67,17 +101,32 @@ pub const Callout = struct {
     content: Element,
     title: ?[]const u8 = null,
     kind: ?[]const u8 = null,
+    node: Node = .{
+        .ptr = undefined,
+        .vtable = .{ .element = fromNode },
+    },
 
     const Self = @This();
 
     pub fn init(alloc: Allocator, content: Element) !*Self {
         const v = try alloc.create(Self);
         v.* = .{ .content = content };
+        v.node.ptr = v;
         return v;
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .html = Self.html } };
+        return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
+    }
+
+    fn getNode(context: *anyopaque) *Node {
+        const self: *Self = @ptrCast(@alignCast(context));
+        return &self.node;
+    }
+
+    fn fromNode(context: *anyopaque) Element {
+        const self: *Self = @ptrCast(@alignCast(context));
+        return self.element();
     }
 
     fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {

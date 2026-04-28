@@ -17,7 +17,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     const v = l.next().?;
     if (v.kind != .link) return Error.InvalidLink;
     if (!eql(u8, v.content, "[")) return (try Element.Literal.init(alloc, v.content)).element();
-    var el = try Element.Empty.init(alloc);
+    var el = try Element.Root.init(alloc);
     while (l.peek()) |next| switch (next.kind) {
         .weak_delimiter, .strong_delimiter => return Error.InvalidLink,
         .link => {
@@ -26,18 +26,20 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
             break;
         },
         else => {
-            const in = try content.parse(alloc, l);
-            try el.content.append(alloc, in);
+            const in = try content.parse(el.allocator(), l);
+            el.append(in);
         },
     };
     const href = l.next() orelse return Error.InvalidLink;
     if (href.kind != .literal) return Error.InvalidLink;
     const finisher = l.next() orelse return Error.InvalidLink;
     if (!finisher.equals(.link, ")")) return Error.InvalidLink;
-    const in: Element = if (el.content.items.len > 0)
+    const in: Element = if (el.content.first != null)
         el.element()
-    else
-        (try Element.Literal.init(alloc, href.content)).element();
+    else blk: {
+        el.deinit();
+        break :blk (try Element.Literal.init(alloc, href.content)).element();
+    };
     return (try Link.init(alloc, in, href.content)).element();
 }
 
@@ -74,7 +76,7 @@ pub fn parseImage(alloc: Allocator, l: *Lexer) ImageError!Element {
     }
     const p = try paragraph.parse(alloc, l);
     const p_el: *Element.paragraph.Block = @ptrCast(@alignCast(p.ptr));
-    el.caption = (try p_el.toEmpty(alloc)).element();
+    el.caption = (try p_el.toRoot(alloc)).element();
     return el.element();
 }
 

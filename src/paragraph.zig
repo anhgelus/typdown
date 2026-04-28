@@ -15,25 +15,27 @@ pub const Error = content.Error || link.Error || Allocator.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Paragraph.Block.init(alloc);
+    var root = try Element.Root.init(alloc);
+    el.content = root.element();
     while (l.peek()) |next| switch (next.kind) {
         .strong_delimiter => return el.element(),
         .weak_delimiter => {
             l.consume();
             const future = l.peek() orelse return el.element();
             if (!future.kind.isPar()) return el.element();
-            try el.content.append(alloc, (try Element.Literal.init(alloc, " ")).element());
+            root.append((try Element.Literal.init(alloc, " ")).element());
         },
-        else => try el.content.append(alloc, try parseLine(alloc, l)),
+        else => root.append(try parseLine(alloc, l)),
     };
     return el.element();
 }
 
 pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
-    var line = try Element.Empty.init(alloc);
+    var line = try Element.Root.init(alloc);
     while (l.peek()) |next| switch (next.kind) {
         .weak_delimiter, .strong_delimiter => return line.element(),
-        .link => try line.content.append(alloc, try link.parse(alloc, l)),
-        else => try line.content.append(alloc, try content.parse(alloc, l)),
+        .link => line.append(try link.parse(alloc, l)),
+        else => line.append(try content.parse(alloc, l)),
     };
     return line.element();
 }

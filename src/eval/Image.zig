@@ -2,22 +2,36 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const HTML = @import("html/Element.zig");
 const Element = @import("Element.zig");
+const Node = Element.Node;
 
 const Self = @This();
 
 src: []const u8,
 alt: ?[]const u8 = null,
+node: Node = .{
+    .ptr = undefined,
+    .vtable = .{ .element = fromNode },
+},
 
 pub fn init(alloc: Allocator, src: []const u8) !*Self {
     const v = try alloc.create(Self);
-    v.* = .{
-        .src = src,
-    };
+    v.* = .{ .src = src };
+    v.node.ptr = v;
     return v;
 }
 
 pub fn element(self: *Self) Element {
-    return .{ .ptr = self, .vtable = .{ .html = html } };
+    return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
+}
+
+fn getNode(context: *anyopaque) *Node {
+    const self: *Self = @ptrCast(@alignCast(context));
+    return &self.node;
+}
+
+fn fromNode(context: *anyopaque) Element {
+    const self: *Self = @ptrCast(@alignCast(context));
+    return self.element();
 }
 
 fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {

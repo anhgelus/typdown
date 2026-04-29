@@ -1,5 +1,5 @@
 //! Based on https://github.com/zeon256/minimal-typst-svg-renderer
-use std::ffi::{CString, CStr};
+use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 use typst::layout::PagedDocument;
@@ -23,17 +23,30 @@ pub fn compile(content: &str) -> String {
     svg_frame(&doc.pages[0].frame)
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn typst_generateSVG(source: *const c_char) ->  *const c_char {
+pub fn escape_math(content: &str) -> String {
+    content.replace("$", r"\$")
+}
+
+unsafe fn convert_call(source: *const c_char, f: fn(&str) -> String) -> *const c_char {
     unsafe {
-        let res = compile(CStr::from_ptr(source).to_str().unwrap());
+        let res = f(CStr::from_ptr(source).to_str().unwrap());
         CString::new(res).unwrap().into_raw()
     }
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn typst_freeSVG(res: *mut c_char) {
+pub unsafe extern "C" fn typst_generateSVG(source: *const c_char) -> *const c_char {
+    unsafe { convert_call(source, compile) }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn typst_freeString(res: *mut c_char) {
     unsafe {
         drop(CString::from_raw(res));
     }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn typst_espaceMath(source: *const c_char) -> *const c_char {
+    unsafe { convert_call(source, escape_math) }
 }

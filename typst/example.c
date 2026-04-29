@@ -4,6 +4,6 @@
 int main() {
     const char* res = typst_generateSVG("Hello world");
     printf("%s\n", res);
-    typst_freeSVG(res);
+    typst_freeString(res);
     return 0;
 }

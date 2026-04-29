@@ -41,6 +41,7 @@ pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
 }
 
 fn doTestMath(parent: Allocator, t: []const u8, v: []const u8) !void {
+    if (@import("config").short) return;
     var arena = std.heap.ArenaAllocator.init(parent);
     defer arena.deinit();
     var alloc = arena.allocator();
@@ -54,10 +55,10 @@ fn doTestMath(parent: Allocator, t: []const u8, v: []const u8) !void {
         var v_iter = std.mem.splitSequence(u8, v, " ");
         while (g_iter.next()) |g_it| {
             const v_it = v_iter.next() orelse break :brk false;
-            if ((std.mem.startsWith(u8, g_it, "xlink:href=") and std.mem.startsWith(u8, g_it, "xlink:href")) or 
+            if ((std.mem.startsWith(u8, g_it, "xlink:href=") and std.mem.startsWith(u8, g_it, "xlink:href")) or
                 (std.mem.startsWith(u8, g_it, "id=") and std.mem.startsWith(u8, v_it, "id="))) continue;
             if (!std.mem.eql(u8, g_it, v_it)) {
-                std.debug.print("not the same: {s} vs {s}", .{g_it, v_it});
+                std.debug.print("not the same: {s} vs {s}", .{ g_it, v_it });
                 break :brk false;
             }
         }

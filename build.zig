@@ -1,14 +1,20 @@
 const std = @import("std");
 
+const TYPST = "lib/typst";
+const TYPST_DEBUG = TYPST ++ "/target/debug";
+const TYPST_RELEASE = TYPST ++ "/target/release";
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    const install = b.getInstallStep();
 
     // build typst module
     const build_typst = b.addSystemCommand(&[_][]const u8{
         "cargo", "build",
     });
-    build_typst.setCwd(b.path("typst/"));
+    build_typst.setCwd(b.path(TYPST));
     if (optimize != .Debug) build_typst.addArg("--release");
 
     const mod = b.addModule("typdown", .{
@@ -17,17 +23,18 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     if (!target.result.isWasiLibC()) mod.link_libc = true;
-    // link typst module during build
-    mod.addIncludePath(b.path("typst"));
-    mod.addLibraryPath(if (optimize == .Debug) b.path("typst/target/debug/") else b.path("typst/target/release/"));
     if (optimize != .Debug) mod.strip = true;
+    // find typst module
+    mod.addIncludePath(b.path(TYPST));
+    mod.addLibraryPath(if (optimize == .Debug) b.path(TYPST_DEBUG) else b.path(TYPST_RELEASE));
 
     const lib = b.addLibrary(.{
         .name = "typdown",
         .linkage = .static,
         .root_module = mod,
+        .use_llvm = true, // zig internal backend crashes during linking (for 0.15.2)
     });
-    // link typst module to build
+    // link typst module
     lib.linkSystemLibrary("typdown_typst");
 
     const installed_lib = b.addInstallArtifact(lib, .{});
@@ -49,22 +56,37 @@ pub fn build(b: *std.Build) void {
     example.root_module.linkLibrary(lib);
     example.root_module.addIncludePath(b.path("include"));
 
-    b.getInstallStep().dependOn(&installed_lib.step);
+    install.dependOn(&installed_lib.step);
 
+    const fmt = b.addFmt(.{
+        .paths = &.{
+            "src/",
+            "build.zig",
+            "build.zig.zon",
+        },
+        .check = true,
+    });
+    install.dependOn(&fmt.step);
+
+    const test_step = b.step("test", "Run tests");
     const mod_tests = b.addTest(.{
         .root_module = mod,
         .use_llvm = true, // zig internal backend crashes during linking (for 0.15.2)
     });
+
+    const options = b.addOptions();
+    const short = b.option(bool, "short", "skip long tests") orelse false;
+    options.addOption(bool, "short", short);
+    mod_tests.root_module.addOptions("config", options);
+
     const run_mod_tests = b.addRunArtifact(mod_tests);
     generateSVG(b, &run_mod_tests.step) catch |err| run_mod_tests.step.addError("{}\n", .{err}) catch unreachable;
-    run_mod_tests.step.dependOn(b.getInstallStep());
-
-    const test_step = b.step("test", "Run tests");
+    run_mod_tests.step.dependOn(install);
     test_step.dependOn(&run_mod_tests.step);
 
     const examples_step = b.step("examples", "Run examples");
     const example_run = b.addRunArtifact(example);
-    example_run.step.dependOn(b.getInstallStep());
+    example_run.step.dependOn(install);
     examples_step.dependOn(&example_run.step);
 
     const check = b.step("check", "Check if foo compiles");

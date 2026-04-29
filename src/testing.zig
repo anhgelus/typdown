@@ -14,7 +14,7 @@ pub fn do(comptime parse: fn (Allocator, *Lexer) parser.Error!Element, parent: A
     const g = try p.renderHTML(alloc);
     defer alloc.free(g);
     std.testing.expect(std.mem.eql(u8, g, v)) catch |err| {
-        std.debug.print("got: {s}\nwanted: {s}\n", .{g, v});
+        std.debug.print("got: {s}\nwanted: {s}\n", .{ g, v });
         return err;
     };
 }

@@ -1,5 +1,3 @@
 #import "_base.typ": *
 
-#show: display.with() 
-
-$x^2$
+#display[$x^2$]

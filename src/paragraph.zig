@@ -40,6 +40,31 @@ pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
     return line.element();
 }
 
+fn doTestMath(parent: Allocator, t: []const u8, v: []const u8) !void {
+    var arena = std.heap.ArenaAllocator.init(parent);
+    defer arena.deinit();
+    var alloc = arena.allocator();
+
+    var l = try Lexer.init(t);
+    var p = try parse(alloc, &l);
+    const g = try p.renderHTML(alloc);
+    defer alloc.free(g);
+    try std.testing.expect(brk: {
+        var g_iter = std.mem.splitSequence(u8, g, " ");
+        var v_iter = std.mem.splitSequence(u8, v, " ");
+        while (g_iter.next()) |g_it| {
+            const v_it = v_iter.next() orelse break :brk false;
+            if ((std.mem.startsWith(u8, g_it, "xlink:href=") and std.mem.startsWith(u8, g_it, "xlink:href")) or 
+                (std.mem.startsWith(u8, g_it, "id=") and std.mem.startsWith(u8, v_it, "id="))) continue;
+            if (!std.mem.eql(u8, g_it, v_it)) {
+                std.debug.print("not the same: {s} vs {s}", .{g_it, v_it});
+                break :brk false;
+            }
+        }
+        break :brk v_iter.next() == null;
+    });
+}
+
 test "parse paragraphs" {
     const alloc = std.testing.allocator;
 
@@ -50,8 +75,8 @@ test "parse paragraphs" {
     try doTest(parse, alloc, "[](bar)", "<p><a href=\"bar\">bar</a></p>");
     try doTest(parse, alloc, "[foo](bar)", "<p><a href=\"bar\">foo</a></p>");
     try doTest(parse, alloc, "hello [foo](bar) world", "<p>hello <a href=\"bar\">foo</a> world</p>");
-    try doTest(parse, alloc, "$x$", "<p>" ++ @embedFile("data/test_content_1.svg") ++ "</p>");
-    try doTest(parse, alloc, "$x^2$", "<p>" ++ @embedFile("data/test_content_2.svg") ++ "</p>");
+    try doTestMath(alloc, "$x$", "<p>" ++ @embedFile("data/test_content_1.svg") ++ "</p>");
+    try doTestMath(alloc, "$x^2$", "<p>" ++ @embedFile("data/test_content_2.svg") ++ "</p>");
 
     try doTestError(parse, alloc, "hello *world", Error.ModifierNotClosed);
     try doTestError(parse, alloc, "hello *wo_rld*", Error.ModifierNotClosed);

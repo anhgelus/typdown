@@ -20,6 +20,13 @@ pub fn init(alloc: Allocator, literal: []const u8) Error!*Element.Literal {
     return v;
 }
 
+pub fn initNoEscape(alloc: Allocator, literal: []const u8) Error!*Element.Literal {
+    const v = try alloc.create(Self);
+    v.* = .{ .literal = try alloc.dupe(u8, literal) };
+    v.node.ptr = v;
+    return v;
+}
+
 pub fn element(self: *Self) Element {
     return .{ .vtable = .{ .render = render, .node = getNode }, .ptr = self };
 }

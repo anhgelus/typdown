@@ -2,7 +2,6 @@ const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const parser = @import("parser.zig");
-const typst = @import("typst.zig");
 pub const Document = parser.Document;
 pub const Error = parser.Error;
 /// Parse the content.

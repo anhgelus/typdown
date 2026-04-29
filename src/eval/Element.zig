@@ -11,6 +11,11 @@ pub const Code = blocks.Code;
 pub const Figure = blocks.Figure;
 pub const Callout = blocks.Callout;
 pub const Quote = blocks.Quote;
+pub const Math = @import("math.zig");
+
+comptime {
+    _ = Math;
+}
 
 pub const Node = struct {
     ptr: *anyopaque,

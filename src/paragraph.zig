@@ -50,9 +50,12 @@ test "parse paragraphs" {
     try doTest(parse, alloc, "[](bar)", "<p><a href=\"bar\">bar</a></p>");
     try doTest(parse, alloc, "[foo](bar)", "<p><a href=\"bar\">foo</a></p>");
     try doTest(parse, alloc, "hello [foo](bar) world", "<p>hello <a href=\"bar\">foo</a> world</p>");
+    try doTest(parse, alloc, "$x$", "<p>" ++ @embedFile("data/test_content_1.svg") ++ "</p>");
+    try doTest(parse, alloc, "$x^2$", "<p>" ++ @embedFile("data/test_content_2.svg") ++ "</p>");
 
     try doTestError(parse, alloc, "hello *world", Error.ModifierNotClosed);
     try doTestError(parse, alloc, "hello *wo_rld*", Error.ModifierNotClosed);
     try doTestError(parse, alloc, "*hell*o *wo_rld*", Error.ModifierNotClosed);
+    try doTestError(parse, alloc, "hello wo$rld", Error.ModifierNotClosed);
     try doTestError(parse, alloc, "hello ::: world", Error.IllegalPlacement);
 }

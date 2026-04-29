@@ -9,4 +9,4 @@
   body
 }
 
-#display()[$pi^2$]
+#display()[$!!$]

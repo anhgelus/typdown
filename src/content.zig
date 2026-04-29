@@ -22,6 +22,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         .bold => content.append(try parseModifier(alloc, l, .bold, "b")),
         .italic => content.append(try parseModifier(alloc, l, .italic, "em")),
         .code => content.append(try parseModifier(alloc, l, .code, "code")),
+        .math => content.append(try parseMath(alloc, l)),
         else => return Error.IllegalPlacement,
     }
     return content.element();
@@ -39,6 +40,20 @@ fn parseModifier(alloc: Allocator, l: *Lexer, knd: Token.Kind, comptime tag: []c
         }
         if (next.kind.isDelimiter()) return Error.ModifierNotClosed;
         root.append(try parse(alloc, l));
+    }
+    return Error.ModifierNotClosed;
+}
+
+fn parseMath(alloc: Allocator, l: *Lexer) Error!Element {
+    const el = try Element.Math.Content.init(alloc);
+    var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
+    while (l.next()) |it| {
+        if (it.kind == .math) {
+            el.content = try acc.toOwnedSlice(alloc);
+            return el.element();
+        }
+        if (it.kind.isDelimiter()) return Error.ModifierNotClosed;
+        try acc.appendSlice(alloc, it.content);
     }
     return Error.ModifierNotClosed;
 }

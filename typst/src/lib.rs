@@ -24,7 +24,7 @@ pub fn compile(content: &str) -> String {
 }
 
 pub fn escape_math(content: &str) -> String {
-    content.replace("$", r"\$")
+    content.replace("$", r"\$").replace("\n", r"\ ")
 }
 
 unsafe fn convert_call(source: *const c_char, f: fn(&str) -> String) -> *const c_char {
@@ -47,6 +47,6 @@ pub unsafe extern "C" fn typst_freeString(res: *mut c_char) {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn typst_espaceMath(source: *const c_char) -> *const c_char {
+pub unsafe extern "C" fn typst_escapeMath(source: *const c_char) -> *const c_char {
     unsafe { convert_call(source, escape_math) }
 }

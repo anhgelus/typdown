@@ -46,11 +46,11 @@ test {
     try doTest(parse, alloc, ">hello world", "<figure><blockquote>hello world</blockquote></figure>");
     try doTest(parse, alloc, ">   hello world", "<figure><blockquote>hello world</blockquote></figure>");
 
-    try doTest(parse, alloc, 
+    try doTest(parse, alloc,
         \\> hello
         \\>world
     , "<figure><blockquote>hello world</blockquote></figure>");
-    try doTest(parse, alloc, 
+    try doTest(parse, alloc,
         \\> hello
         \\>world
         \\attribution sur

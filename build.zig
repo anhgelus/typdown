@@ -10,7 +10,6 @@ pub fn build(b: *std.Build) void {
     });
     build_typst.setCwd(b.path("typst/"));
     if (optimize != .Debug) build_typst.addArg("--release");
-    b.getInstallStep().dependOn(&build_typst.step);
 
     const mod = b.addModule("typdown", .{
         .root_source_file = b.path("src/root.zig"),
@@ -20,10 +19,7 @@ pub fn build(b: *std.Build) void {
     if (!target.result.isWasiLibC()) mod.link_libc = true;
     // link typst module during build
     mod.addIncludePath(b.path("typst"));
-    mod.addLibraryPath(
-        if (optimize == .Debug) b.path("typst/target/debug/")
-        else b.path("typst/target/release/")
-    );
+    mod.addLibraryPath(if (optimize == .Debug) b.path("typst/target/debug/") else b.path("typst/target/release/"));
     if (optimize != .Debug) mod.strip = true;
 
     const lib = b.addLibrary(.{
@@ -31,10 +27,11 @@ pub fn build(b: *std.Build) void {
         .linkage = .static,
         .root_module = mod,
     });
-    // link typst module to build 
+    // link typst module to build
     lib.linkSystemLibrary("typdown_typst");
 
     const installed_lib = b.addInstallArtifact(lib, .{});
+    installed_lib.step.dependOn(&build_typst.step);
     // when emitting headers will be fixed
     //installed_lib.emitted_h = lib.getEmittedH();
 
@@ -59,16 +56,34 @@ pub fn build(b: *std.Build) void {
         .use_llvm = true, // zig internal backend crashes during linking (for 0.15.2)
     });
     const run_mod_tests = b.addRunArtifact(mod_tests);
+    generateSVG(b, &run_mod_tests.step) catch |err| run_mod_tests.step.addError("{}\n", .{err}) catch unreachable;
+    run_mod_tests.step.dependOn(b.getInstallStep());
 
     const test_step = b.step("test", "Run tests");
-    test_step.dependOn(b.getInstallStep());
     test_step.dependOn(&run_mod_tests.step);
 
     const examples_step = b.step("examples", "Run examples");
-    examples_step.dependOn(b.getInstallStep());
     const example_run = b.addRunArtifact(example);
+    example_run.step.dependOn(b.getInstallStep());
     examples_step.dependOn(&example_run.step);
 
     const check = b.step("check", "Check if foo compiles");
     check.dependOn(&lib.step);
+}
+
+fn generateSVG(b: *std.Build, step: *std.Build.Step) !void {
+    var dir = try std.fs.cwd().openDir("src/data/", .{ .iterate = true });
+    defer dir.close();
+    var iter = dir.iterate();
+    while (try iter.next()) |it| {
+        if (it.kind == .file and std.mem.endsWith(u8, it.name, ".typ")) {
+            const cmd = b.addSystemCommand(&[_][]const u8{
+                "typst", "c",
+                "-f",    "svg",
+                it.name,
+            });
+            cmd.setCwd(b.path("src/data/"));
+            step.dependOn(&cmd.step);
+        }
+    }
 }

@@ -1,12 +1,5 @@
-#set page(
-  fill: none, 
-  margin: 2pt,
-);
+#import "_base.typ": *
 
-#let display(body) = context {
-  let m = measure(body)
-  set page(width: m.width + page.margin.length*2, height: m.height + page.margin.length*2)
-  body
-}
+#show: display.with() 
 
-#display()[$x$]
+$text("Adwaita Mono") x$

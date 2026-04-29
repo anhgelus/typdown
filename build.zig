@@ -76,7 +76,7 @@ fn generateSVG(b: *std.Build, step: *std.Build.Step) !void {
     defer dir.close();
     var iter = dir.iterate();
     while (try iter.next()) |it| {
-        if (it.kind == .file and std.mem.endsWith(u8, it.name, ".typ")) {
+        if (it.kind == .file and std.mem.endsWith(u8, it.name, ".typ") and !std.mem.startsWith(u8, it.name, "_")) {
             const cmd = b.addSystemCommand(&[_][]const u8{
                 "typst", "c",
                 "-f",    "svg",

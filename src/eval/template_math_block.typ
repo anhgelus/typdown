@@ -1,11 +1,15 @@
-#set page(
-  fill: none, 
-  margin: 2pt,
-);
+#show math.equation: set text(font: "New Computer Modern Math")
+#show math.text: set text(font: "New Computer Modern")
 
 #let display(body) = context {
+  let margin = 2pt
   let m = measure(body)
-  set page(width: m.width + page.margin.length*2, height: m.height + page.margin.length*2)
+  set page(
+    fill: none,
+    margin: margin,
+    width: m.width + margin*2, 
+    height: m.height + margin*2,
+  )
   body
 }
 

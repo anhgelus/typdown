@@ -10,7 +10,7 @@ use typst::foundations::{Bytes, Datetime};
 use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
-use typst_kit::fonts::Fonts;
+use typst_kit::fonts::{FontSlot, Fonts};
 
 /// Main interface that determines the environment for Typst.
 pub struct MinimalWorld {
@@ -24,32 +24,23 @@ pub struct MinimalWorld {
     book: LazyHash<FontBook>,
 
     /// Metadata about all known fonts.
-    fonts: Vec<Font>,
+    fonts: Vec<FontSlot>,
 }
 
 impl MinimalWorld {
     pub fn new(source: impl Into<String>) -> Self {
-        let (fonts, book) = Self::load_fonts();
+        let mut searcher = Fonts::searcher();
+        searcher.include_system_fonts(true);
+        #[cfg(feature = "embed-fonts")]
+        searcher.include_embedded_fonts(true);
+        let fonts = searcher.search();
 
         Self {
             library: LazyHash::new(Library::default()),
-            book: LazyHash::new(book),
-            fonts: fonts,
+            book: LazyHash::new(fonts.book),
+            fonts: fonts.fonts,
             source: Source::detached(source),
         }
-    }
-
-    fn load_fonts() -> (Vec<Font>, FontBook) {
-        let mut searcher = Fonts::searcher();
-        searcher.include_system_fonts(true);
-
-        let mut fonts = Vec::new();
-        let mut book = FontBook::new();
-        for font in searcher.search().fonts {
-            book.push(font.get().unwrap().info().clone());
-            fonts.push(font.get().unwrap());
-        }
-        (fonts, book)
     }
 }
 
@@ -85,7 +76,7 @@ impl World for MinimalWorld {
 
     /// Accessing a specified font per index of font book.
     fn font(&self, id: usize) -> Option<Font> {
-        self.fonts.get(id).cloned()
+        self.fonts.get(id)?.get()
     }
 
     /// Get the current date.

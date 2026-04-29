@@ -49,6 +49,6 @@ pub fn build(b: *std.Build) void {
     const example_run = b.addRunArtifact(example);
     examples_step.dependOn(&example_run.step);
 
-    const check = b.step("check", "Check if foo compiles");
+    const check = b.step("check", "Check if it compiles");
     check.dependOn(&lib.step);
 }

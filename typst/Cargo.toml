@@ -1,0 +1,17 @@
+[package]
+name = "typdown-typst"
+version = "0.1.0"
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+typst = "0.14.2"
+typst-kit = "0.14.2"
+typst-svg = "0.14.2"
+
+[profile.release]
+opt-level = 2
+codegen-units = 1
+lto = true
+strip = true

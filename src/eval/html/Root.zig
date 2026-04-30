@@ -28,7 +28,7 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn element(self: *Self) Element {
-    return (Element.Wrapper(Self){ .ptr = self }).element();
+    return Element.Wrapper(Self, render).init(self);
 }
 
 pub fn allocator(self: *Self) Allocator {
@@ -50,7 +50,7 @@ fn fromNode(context: *anyopaque) Element {
     return self.element();
 }
 
-pub fn render(self: *Self, alloc: Allocator) Error![]const u8 {
+fn render(self: *Self, alloc: Allocator) Error![]const u8 {
     if (self.content.first == null) return "";
     var acc = try std.ArrayList(u8).initCapacity(alloc, 8);
     errdefer acc.deinit(alloc);

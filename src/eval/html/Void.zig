@@ -30,7 +30,7 @@ pub fn init(alloc: Allocator, tag: []const u8) Error!*Self {
 }
 
 pub fn element(self: *Self) Element {
-    return (Element.Wrapper(Self){ .ptr = self }).element();
+    return Element.Wrapper(Self, render).init(self);
 }
 
 pub fn setAttribute(self: *Self, k: []const u8, v: []const u8) Error!void {
@@ -62,7 +62,7 @@ fn fromNode(context: *anyopaque) Element {
     return self.element();
 }
 
-pub fn render(self: *Self, alloc: Allocator) Error![]const u8 {
+fn render(self: *Self, alloc: Allocator) Error![]const u8 {
     const attr = try renderAttribute(alloc, &self.attributes, &self.class_list);
     defer if (attr) |it| alloc.free(it);
     var acc = try List(u8).initCapacity(alloc, self.tag.len + 2);

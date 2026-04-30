@@ -21,12 +21,7 @@ pub fn init(alloc: Allocator, src: []const u8) !*Self {
 }
 
 pub fn element(self: *Self) Element {
-    return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
-}
-
-fn getNode(context: *anyopaque) *Node {
-    const self: *Self = @ptrCast(@alignCast(context));
-    return &self.node;
+    return Element.Wrapper(Self, html).init(self);
 }
 
 fn fromNode(context: *anyopaque) Element {
@@ -34,8 +29,7 @@ fn fromNode(context: *anyopaque) Element {
     return self.element();
 }
 
-fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
-    const self: *Self = @ptrCast(@alignCast(context));
+fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
     var img = try HTML.Void.init(alloc, "img");
     try img.setAttribute("src", self.src);
     if (self.alt) |it| try img.setAttribute("alt", it);

@@ -28,7 +28,7 @@ pub fn initNoEscape(alloc: Allocator, literal: []const u8) Error!*Element.Litera
 }
 
 pub fn element(self: *Self) Element {
-    return (Element.Wrapper(Self){ .ptr = self }).element();
+    return Element.Wrapper(Self, render).init(self);
 }
 
 fn fromNode(context: *anyopaque) Element {
@@ -36,6 +36,6 @@ fn fromNode(context: *anyopaque) Element {
     return self.element();
 }
 
-pub fn render(self: *Self, alloc: Allocator) Error![]const u8 {
+fn render(self: *Self, alloc: Allocator) Error![]const u8 {
     return try alloc.dupe(u8, self.literal);
 }

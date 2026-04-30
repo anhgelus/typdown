@@ -1,11 +1,11 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const HTML = Parent.HTML;
-const Parent = @import("Element.zig");
-const Node = Parent.Node;
+const HTML = Element.HTML;
+const Element = @import("Element.zig");
+const Node = Element.Node;
 
 level: u3,
-content: Parent,
+content: Element,
 node: Node = .{
     .ptr = undefined,
     .vtable = .{ .element = fromNode },
@@ -13,29 +13,23 @@ node: Node = .{
 
 const Self = @This();
 
-pub fn init(alloc: Allocator, level: u3, content: Parent) !*Self {
+pub fn init(alloc: Allocator, level: u3, content: Element) !*Self {
     const v = try alloc.create(Self);
     v.* = .{ .level = level, .content = content };
     v.node.ptr = v;
     return v;
 }
 
-pub fn element(self: *Self) Parent {
-    return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
+pub fn element(self: *Self) Element {
+    return Element.Wrapper(Self, html).init(self);
 }
 
-fn getNode(context: *anyopaque) *Node {
-    const self: *Self = @ptrCast(@alignCast(context));
-    return &self.node;
-}
-
-fn fromNode(context: *anyopaque) Parent {
+fn fromNode(context: *anyopaque) Element {
     const self: *Self = @ptrCast(@alignCast(context));
     return self.element();
 }
 
-fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
-    const self: *Self = @ptrCast(@alignCast(context));
+fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
     var el = try HTML.Content.init(alloc, switch (self.level) {
         1 => "h1",
         2 => "h2",

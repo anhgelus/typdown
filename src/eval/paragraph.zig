@@ -32,12 +32,7 @@ pub const Link = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
-    }
-
-    fn getNode(context: *anyopaque) *Node {
-        const self: *Self = @ptrCast(@alignCast(context));
-        return &self.node;
+        return Element.Wrapper(Self, html).init(self);
     }
 
     fn fromNode(context: *anyopaque) Element {
@@ -45,8 +40,7 @@ pub const Link = struct {
         return self.element();
     }
 
-    fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
-        const self: *Self = @ptrCast(@alignCast(context));
+    fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
         var el = try HTML.Content.init(alloc, "a");
         el.content = try self.content.html(alloc);
         try el.base.setAttribute("href", self.link);

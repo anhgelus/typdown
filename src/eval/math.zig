@@ -54,12 +54,7 @@ fn Math(comptime template: []const u8) type {
         }
 
         pub fn element(self: *Self) Element {
-            return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
-        }
-
-        fn getNode(context: *anyopaque) *Node {
-            const self: *Self = @ptrCast(@alignCast(context));
-            return &self.node;
+            return Element.Wrapper(Self, html).init(self);
         }
 
         fn fromNode(context: *anyopaque) Element {
@@ -67,10 +62,8 @@ fn Math(comptime template: []const u8) type {
             return self.element();
         }
 
-        fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
-            const self: *Self = @ptrCast(@alignCast(context));
+        fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
             const content = self.content orelse return (try HTML.Literal.init(alloc, "")).element();
-
             var arena = std.heap.ArenaAllocator.init(alloc);
             defer arena.deinit();
             const escaped = try escape(arena.allocator(), content);

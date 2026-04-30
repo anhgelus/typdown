@@ -24,12 +24,7 @@ fn List(comptime tag: []const u8) type {
         }
 
         pub fn element(self: *Self) Element {
-            return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
-        }
-
-        fn getNode(context: *anyopaque) *Node {
-            const self: *Self = @ptrCast(@alignCast(context));
-            return &self.node;
+            return Element.Wrapper(Self, html).init(self);
         }
 
         fn fromNode(context: *anyopaque) Element {
@@ -37,8 +32,7 @@ fn List(comptime tag: []const u8) type {
             return self.element();
         }
 
-        fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
-            const self: *Self = @ptrCast(@alignCast(context));
+        fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
             var el = try HTML.Content.init(alloc, tag);
             var root = try HTML.Root.init(alloc);
             el.content = root.element();

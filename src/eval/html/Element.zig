@@ -11,13 +11,12 @@ pub const Root = @import("Root.zig");
 
 pub const Error = html.Error || Allocator.Error;
 
-pub fn Wrapper(comptime V: type) type {
+pub fn Wrapper(comptime V: type, comptime r: *const fn (*V, Allocator) Error![]const u8) type {
     comptime {
         if (!@hasField(V, "node")) @compileError("missing field 'node' for " ++ @typeName(V));
         const nd = @FieldType(V, "node");
         if (nd != Node) @compileError("invalid node's type: " ++ @typeName(nd) ++ ", want " ++ @typeName(Node));
         if (!std.meta.hasMethod(V, "element")) @compileError("missing declaration 'element' for " ++ @typeName(V));
-        if (!std.meta.hasMethod(V, "render")) @compileError("missing declaration 'render' for " ++ @typeName(V));
     }
     return struct {
         ptr: *V,
@@ -31,7 +30,11 @@ pub fn Wrapper(comptime V: type) type {
 
         fn render(context: *anyopaque, alloc: Allocator) Error![]const u8 {
             const self: *V = @ptrCast(@alignCast(context));
-            return try self.render(alloc);
+            return try r(self, alloc);
+        }
+
+        pub fn init(ptr: *V) Element {
+            return (Self{ .ptr = ptr }).element();
         }
 
         pub fn element(self: Self) Element {

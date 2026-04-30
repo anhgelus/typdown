@@ -13,6 +13,38 @@ pub const Callout = blocks.Callout;
 pub const Quote = blocks.Quote;
 pub const Math = @import("math.zig");
 
+pub fn Wrapper(comptime V: type, comptime h: *const fn (*V, Allocator) HTML.Error!HTML) type {
+    comptime {
+        if (!@hasField(V, "node")) @compileError("missing field 'node' for " ++ @typeName(V));
+        const nd = @FieldType(V, "node");
+        if (nd != Node) @compileError("invalid node's type: " ++ @typeName(nd) ++ ", want " ++ @typeName(Node));
+        if (!std.meta.hasMethod(V, "element")) @compileError("missing declaration 'element' for " ++ @typeName(V));
+    }
+    return struct {
+        ptr: *V,
+
+        const Self = @This();
+
+        fn node(context: *anyopaque) *Node {
+            const self: *V = @ptrCast(@alignCast(context));
+            return &self.node;
+        }
+
+        fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
+            const self: *V = @ptrCast(@alignCast(context));
+            return try h(self, alloc);
+        }
+
+        pub fn init(ptr: *V) Element {
+            return (Self{ .ptr = ptr }).element();
+        }
+
+        pub fn element(self: Self) Element {
+            return .{ .ptr = self.ptr, .vtable = .{ .node = Self.node, .html = Self.html } };
+        }
+    };
+}
+
 pub const Node = struct {
     ptr: *anyopaque,
     vtable: struct { element: *const fn (*anyopaque) Element },
@@ -68,12 +100,7 @@ pub const Literal = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .html = Self.html, .node = getNode } };
-    }
-
-    fn getNode(context: *anyopaque) *Node {
-        const self: *Self = @ptrCast(@alignCast(context));
-        return &self.node;
+        return Wrapper(Self, Self.html).init(self);
     }
 
     fn fromNode(context: *anyopaque) Element {
@@ -81,8 +108,7 @@ pub const Literal = struct {
         return self.element();
     }
 
-    fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
-        const self: *Self = @ptrCast(@alignCast(context));
+    fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
         return (try HTML.Literal.init(alloc, self.content)).element();
     }
 };
@@ -101,7 +127,7 @@ pub fn Simple(comptime tag: []const u8) type {
         }
 
         pub fn element(self: *Self) Element {
-            return .{ .ptr = self, .vtable = .{ .html = Self.html, .node = getNode } };
+            return Wrapper(Self, Self.html).init(self);
         }
 
         pub fn toTag(self: *Self, alloc: Allocator, comptime target: []const u8) !*Simple(target) {
@@ -118,18 +144,12 @@ pub fn Simple(comptime tag: []const u8) type {
             return el;
         }
 
-        fn getNode(context: *anyopaque) *Node {
-            const self: *Self = @ptrCast(@alignCast(context));
-            return &self.node;
-        }
-
         fn fromNode(context: *anyopaque) Element {
             const self: *Self = @ptrCast(@alignCast(context));
             return self.element();
         }
 
-        fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
-            const self: *Self = @ptrCast(@alignCast(context));
+        fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
             var el = try HTML.Content.init(alloc, tag);
             if (self.content) |it| el.content = try it.html(alloc);
             return el.element();

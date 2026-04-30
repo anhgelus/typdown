@@ -22,15 +22,7 @@ pub const Code = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{
-            .html = html,
-            .node = getNode,
-        } };
-    }
-
-    fn getNode(context: *anyopaque) *Node {
-        const self: *Self = @ptrCast(@alignCast(context));
-        return &self.node;
+        return Element.Wrapper(Self, html).init(self);
     }
 
     fn fromNode(context: *anyopaque) Element {
@@ -38,8 +30,7 @@ pub const Code = struct {
         return self.element();
     }
 
-    fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
-        const self: *Self = @ptrCast(@alignCast(context));
+    fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
         var el = try HTML.Content.init(alloc, "pre");
         if (self.attribute) |attr| try el.base.setAttribute("data-code", attr);
         var code = try HTML.Content.init(alloc, "code");
@@ -69,12 +60,7 @@ pub const Figure = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
-    }
-
-    fn getNode(context: *anyopaque) *Node {
-        const self: *Self = @ptrCast(@alignCast(context));
-        return &self.node;
+        return Element.Wrapper(Self, html).init(self);
     }
 
     fn fromNode(context: *anyopaque) Element {
@@ -82,8 +68,7 @@ pub const Figure = struct {
         return self.element();
     }
 
-    fn html(context: *anyopaque, parent: Allocator) HTML.Error!HTML {
-        const self: *Self = @ptrCast(@alignCast(context));
+    fn html(self: *Self, parent: Allocator) HTML.Error!HTML {
         var el = try HTML.Content.init(parent, "figure");
         var root = try HTML.Root.init(parent);
         const alloc = root.allocator();
@@ -116,12 +101,7 @@ pub const Callout = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
-    }
-
-    fn getNode(context: *anyopaque) *Node {
-        const self: *Self = @ptrCast(@alignCast(context));
-        return &self.node;
+        return Element.Wrapper(Self, html).init(self);
     }
 
     fn fromNode(context: *anyopaque) Element {
@@ -129,8 +109,7 @@ pub const Callout = struct {
         return self.element();
     }
 
-    fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
-        const self: *Self = @ptrCast(@alignCast(context));
+    fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
         var el = try HTML.Content.init(alloc, "div");
         try el.base.appendClass("callout");
         const kind = self.kind orelse "default";
@@ -162,12 +141,7 @@ pub const Quote = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return .{ .ptr = self, .vtable = .{ .html = html, .node = getNode } };
-    }
-
-    fn getNode(context: *anyopaque) *Node {
-        const self: *Self = @ptrCast(@alignCast(context));
-        return &self.node;
+        return Element.Wrapper(Self, html).init(self);
     }
 
     fn fromNode(context: *anyopaque) Element {
@@ -175,8 +149,7 @@ pub const Quote = struct {
         return self.element();
     }
 
-    fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
-        const self: *Self = @ptrCast(@alignCast(context));
+    fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
         const quote = try HTML.Content.init(alloc, "blockquote");
         quote.content = try self.content.html(alloc);
         return quote.element();

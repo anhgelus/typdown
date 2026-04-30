@@ -42,16 +42,11 @@ pub fn append(self: *Self, raw: anytype) void {
 }
 
 pub fn element(self: *Self) Element {
-    return .{ .vtable = .{ .html = html, .node = getNode }, .ptr = self };
+    return Element.Wrapper(Self, html).init(self);
 }
 
 pub fn renderHTML(self: *Self, alloc: Allocator) HTML.Error![]const u8 {
     return try self.element().renderHTML(alloc);
-}
-
-fn getNode(context: *anyopaque) *Node {
-    const self: *Self = @ptrCast(@alignCast(context));
-    return &self.node;
 }
 
 fn fromNode(context: *anyopaque) Element {
@@ -59,8 +54,7 @@ fn fromNode(context: *anyopaque) Element {
     return self.element();
 }
 
-fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
-    const self: *Self = @ptrCast(@alignCast(context));
+fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
     const el = try HTML.Root.init(alloc);
     var v = self.content.first;
     while (v) |it| : (v = it.next) try el.append(Node.from(it).element());

@@ -17,7 +17,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     switch (v.kind) {
         .literal => {
             const el = try Element.Literal.init(alloc, v.content);
-            content.append(el.element());
+            content.append(el);
         },
         .bold => content.append(try parseModifier(alloc, l, .bold, "b")),
         .italic => content.append(try parseModifier(alloc, l, .italic, "em")),

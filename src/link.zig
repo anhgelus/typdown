@@ -25,10 +25,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
             if (!eql(u8, next.content, "](")) return Error.InvalidLink;
             break;
         },
-        else => {
-            const in = try content.parse(el.allocator(), l);
-            el.append(in);
-        },
+        else => el.append(try content.parse(el.allocator(), l)),
     };
     const href = l.next() orelse return Error.InvalidLink;
     if (href.kind != .literal) return Error.InvalidLink;

@@ -31,7 +31,13 @@ pub fn allocator(self: *Self) Allocator {
     return self.arena.allocator();
 }
 
-pub fn append(self: *Self, el: Element) void {
+pub fn append(self: *Self, raw: anytype) void {
+    const el: Element = blk: {
+        const T = @TypeOf(raw);
+        if (T == Element) break :blk raw;
+        if (std.meta.hasMethod(T, "element")) break :blk raw.element();
+        @compileError("cannot convert " ++ @typeName(T) ++ " into " ++ @typeName(Element));
+    };
     self.content.append(&el.node().node);
 }
 

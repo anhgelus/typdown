@@ -20,7 +20,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         .weak_delimiter => {
             l.consume();
             if (l.peek()) |it| if (it.kind != .quote) break;
-            root.append((try Element.Literal.init(alloc, " ")).element());
+            root.append(try Element.Literal.init(alloc, " "));
             continue;
         },
         .strong_delimiter => break,

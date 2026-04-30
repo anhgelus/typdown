@@ -39,7 +39,7 @@ pub fn append(self: *Self, raw: anytype) Error!void {
     const el: Element = blk: {
         const T = @TypeOf(raw);
         if (T == Element) break :blk raw;
-        if (@hasDecl(T, "html")) break :blk try raw.html(self.allocator());
+        if (std.meta.hasMethod(T, "html")) break :blk try raw.html(self.allocator());
         @compileError("cannot convert " ++ @typeName(T) ++ " into " ++ @typeName(Element));
     };
     self.content.append(&el.node().node);

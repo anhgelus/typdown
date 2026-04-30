@@ -16,8 +16,8 @@ pub fn Wrapper(comptime V: type) type {
         if (!@hasField(V, "node")) @compileError("missing field 'node' for " ++ @typeName(V));
         const nd = @FieldType(V, "node");
         if (nd != Node) @compileError("invalid node's type: " ++ @typeName(nd) ++ ", want " ++ @typeName(Node));
-        if (!@hasDecl(V, "element")) @compileError("missing declaration 'element' for " ++ @typeName(V));
-        if (!@hasDecl(V, "render")) @compileError("missing declaration 'render' for " ++ @typeName(V));
+        if (!std.meta.hasMethod(V, "element")) @compileError("missing declaration 'element' for " ++ @typeName(V));
+        if (!std.meta.hasMethod(V, "render")) @compileError("missing declaration 'render' for " ++ @typeName(V));
     }
     return struct {
         ptr: *V,

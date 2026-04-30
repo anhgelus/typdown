@@ -45,9 +45,9 @@ pub const Node = struct {
     vtable: struct { element: *const fn (*anyopaque) Element },
     node: std.DoublyLinkedList.Node = .{},
 
-    pub fn from(n: *std.DoublyLinkedList.Node) *Node {
-        const v: *Node = @fieldParentPtr("node", n);
-        return v;
+    pub fn from(n: *std.DoublyLinkedList.Node) Element {
+        const self: *Node = @fieldParentPtr("node", n);
+        return self.vtable.element(self.ptr);
     }
 
     pub fn element(self: Node) Element {
@@ -106,7 +106,7 @@ test "content" {
     p.content = root.element();
 
     var content = try Literal.init(alloc, "hello world");
-    root.append(content.element());
+    try root.append(content.element());
 
     try doTest(alloc, content.element(), "hello world");
     try doTest(alloc, p.element(), "<p>hello world</p>");
@@ -115,8 +115,8 @@ test "content" {
     var rootDiv = try Root.init(alloc);
     div.content = rootDiv.element();
     try div.base.appendClass("foo-bar");
-    rootDiv.append(p.element());
-    rootDiv.append((try Void.init(alloc, "br")).element());
+    try rootDiv.append(p.element());
+    try rootDiv.append((try Void.init(alloc, "br")).element());
 
     try doTest(alloc, div.element(), "<div class=\"foo-bar\"><p>hello world</p><br></div>");
 }

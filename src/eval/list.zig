@@ -45,7 +45,7 @@ fn List(comptime tag: []const u8) type {
             for (self.content.items) |it| {
                 var li = try HTML.Content.init(root.allocator(), "li");
                 li.content = try it.html(root.allocator());
-                root.append(li.element());
+                try root.append(li.element());
             }
             return el.element();
         }

@@ -44,7 +44,7 @@ pub const Code = struct {
         if (self.attribute) |attr| try el.base.setAttribute("data-code", attr);
         var code = try HTML.Content.init(alloc, "code");
         var root = try HTML.Root.init(alloc);
-        for (self.content.items) |it| root.append(try it.html(root.allocator()));
+        for (self.content.items) |it| try root.append(it);
         code.content = root.element();
         el.content = code.element();
         return el.element();
@@ -87,12 +87,12 @@ pub const Figure = struct {
         var el = try HTML.Content.init(parent, "figure");
         var root = try HTML.Root.init(parent);
         const alloc = root.allocator();
-        root.append(try self.content.html(alloc));
+        try root.append(self.content);
         el.content = root.element();
         const caption = self.caption orelse return el.element();
         var figcap = try HTML.Content.init(alloc, "figcaption");
         figcap.content = try caption.html(alloc);
-        root.append(figcap.element());
+        try root.append(figcap.element());
         return el.element();
     }
 };
@@ -138,8 +138,8 @@ pub const Callout = struct {
         const root = try HTML.Root.init(alloc);
         const title = try HTML.Content.init(alloc, "h4");
         title.content = (try HTML.Literal.init(alloc, self.title orelse kind)).element();
-        root.append(title.element());
-        root.append(try self.content.html(alloc));
+        try root.append(title.element());
+        try root.append(self.content);
         el.content = root.element();
         return el.element();
     }

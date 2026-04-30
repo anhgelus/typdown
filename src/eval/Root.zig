@@ -57,6 +57,6 @@ fn html(context: *anyopaque, alloc: Allocator) HTML.Error!HTML {
     const self: *Self = @ptrCast(@alignCast(context));
     const el = try HTML.Root.init(alloc);
     var v = self.content.first;
-    while (v) |it| : (v = it.next) el.append(try Node.from(it).element().html(el.allocator()));
+    while (v) |it| : (v = it.next) try el.append(Node.from(it).element());
     return el.element();
 }

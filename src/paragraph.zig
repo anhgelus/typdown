@@ -50,19 +50,19 @@ fn doTestMath(parent: Allocator, t: []const u8, v: []const u8) !void {
     var p = try parse(alloc, &l);
     const g = try p.renderHTML(alloc);
     defer alloc.free(g);
-    try std.testing.expect(brk: {
+    try std.testing.expect(blk: {
         var g_iter = std.mem.splitSequence(u8, g, " ");
         var v_iter = std.mem.splitSequence(u8, v, " ");
         while (g_iter.next()) |g_it| {
-            const v_it = v_iter.next() orelse break :brk false;
+            const v_it = v_iter.next() orelse break :blk false;
             if ((std.mem.startsWith(u8, g_it, "xlink:href=") and std.mem.startsWith(u8, g_it, "xlink:href")) or
                 (std.mem.startsWith(u8, g_it, "id=") and std.mem.startsWith(u8, v_it, "id="))) continue;
             if (!std.mem.eql(u8, g_it, v_it)) {
                 std.debug.print("not the same: {s} vs {s}", .{ g_it, v_it });
-                break :brk false;
+                break :blk false;
             }
         }
-        break :brk v_iter.next() == null;
+        break :blk v_iter.next() == null;
     });
 }
 

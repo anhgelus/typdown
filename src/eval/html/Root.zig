@@ -35,7 +35,13 @@ pub fn allocator(self: *Self) Allocator {
     return self.arena.allocator();
 }
 
-pub fn append(self: *Self, el: Element) void {
+pub fn append(self: *Self, raw: anytype) Error!void {
+    const el: Element = blk: {
+        const T = @TypeOf(raw);
+        if (T == Element) break :blk raw;
+        if (@hasDecl(T, "html")) break :blk try raw.html(self.allocator());
+        @compileError("cannot convert " ++ @typeName(T) ++ " into " ++ @typeName(Element));
+    };
     self.content.append(&el.node().node);
 }
 
@@ -52,6 +58,6 @@ pub fn render(self: *Self, alloc: Allocator) Error![]const u8 {
     var arena = Arena.init(alloc);
     defer arena.deinit();
     var v = self.content.first;
-    while (v) |it| : (v = it.next) try acc.appendSlice(alloc, try Node.from(it).element().render(arena.allocator()));
+    while (v) |it| : (v = it.next) try acc.appendSlice(alloc, try Node.from(it).render(arena.allocator()));
     return acc.toOwnedSlice(alloc);
 }

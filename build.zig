@@ -93,7 +93,7 @@ pub fn build(b: *std.Build) void {
 }
 
 fn generateSVG(b: *std.Build, step: *std.Build.Step) !void {
-    var dir = try std.fs.cwd().openDir("src/data/", .{ .iterate = true });
+    var dir = try std.fs.cwd().openDir(b.build_root.path.?, .{ .iterate = true });
     defer dir.close();
     var iter = dir.iterate();
     while (try iter.next()) |it| {

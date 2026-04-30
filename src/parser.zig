@@ -10,6 +10,7 @@ const list = @import("list.zig");
 const code = @import("code.zig");
 const callout = @import("callout.zig");
 const quote = @import("quote.zig");
+const math = @import("math.zig");
 
 pub const Error = error{FeatureNotSupported} ||
     Lexer.Error ||
@@ -21,6 +22,7 @@ pub const Error = error{FeatureNotSupported} ||
     code.Error ||
     callout.Error ||
     quote.Error ||
+    math.Error ||
     Allocator.Error;
 
 pub const Document = Element.Root;
@@ -49,6 +51,7 @@ fn gen(parent: Allocator, l: *Lexer) Error!*Document {
             .image => try link.parseImage(alloc, l),
             .code_block => try code.parse(alloc, l),
             .quote => try quote.parse(alloc, l),
+            .math_block => try math.parse(alloc, l),
             .weak_delimiter, .strong_delimiter => {
                 l.consume();
                 continue :base;

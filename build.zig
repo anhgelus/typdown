@@ -64,7 +64,6 @@ pub fn build(b: *std.Build) void {
             "build.zig",
             "build.zig.zon",
         },
-        .check = true,
     });
     install.dependOn(&fmt.step);
 

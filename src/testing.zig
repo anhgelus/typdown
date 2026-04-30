@@ -53,7 +53,7 @@ pub fn doMath(comptime parse: ParserFn, parent: Allocator, t: []const u8, v: []c
             if ((std.mem.startsWith(u8, g_it, "xlink:href=") and std.mem.startsWith(u8, g_it, "xlink:href")) or
                 (std.mem.startsWith(u8, g_it, "id=") and std.mem.startsWith(u8, v_it, "id="))) continue;
             if (!std.mem.eql(u8, g_it, v_it)) {
-                std.debug.print("not the same: {s} vs {s}", .{ g_it, v_it });
+                std.debug.print("not the same: {s} vs {s}\n", .{ g_it, v_it });
                 break :blk false;
             }
         }

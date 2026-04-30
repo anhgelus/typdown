@@ -5,8 +5,10 @@ const HTML = Element.HTML;
 const Element = @import("Element.zig");
 const Node = Element.Node;
 
-const content_template = @embedFile("template_math_content.typ");
-const block_template = @embedFile("template_math_block.typ");
+const common_template = @embedFile("template.typ");
+const content_template = @embedFile("template_content.typ");
+const block_template = @embedFile("template_block.typ");
+const apply_template = "#show: display.with(param)\n\n";
 
 pub const Error = error{InvalidTypstTemplate} || Allocator.Error;
 
@@ -28,19 +30,18 @@ fn escape(alloc: Allocator, content: []const u8) ![]const u8 {
 }
 
 fn generateFile(alloc: Allocator, template: []const u8, content: []const u8) Error![]const u8 {
-    var iter = std.mem.splitSequence(u8, template, "!!");
-    const beg = iter.next() orelse return Error.InvalidTypstTemplate;
-    const end = iter.next() orelse return Error.InvalidTypstTemplate;
-    if (iter.next() != null) return Error.InvalidTypstTemplate;
-
-    var acc = try std.ArrayList(u8).initCapacity(alloc, beg.len + end.len + content.len);
-    try acc.appendSlice(alloc, beg);
+    var acc = try std.ArrayList(u8).initCapacity(
+        alloc,
+        common_template.len + template.len + apply_template.len + content.len,
+    );
+    try acc.appendSlice(alloc, common_template);
+    try acc.appendSlice(alloc, template);
+    try acc.appendSlice(alloc, apply_template);
     try acc.appendSlice(alloc, content);
-    try acc.appendSlice(alloc, end);
     return try acc.toOwnedSlice(alloc);
 }
 
-fn Math(comptime template: []const u8) type {
+fn Math(comptime template: []const u8, comptime modFn: *const fn (Allocator, []const u8) Allocator.Error![]const u8) type {
     return struct {
         content: ?[]const u8 = null,
         node: Node,
@@ -67,7 +68,7 @@ fn Math(comptime template: []const u8) type {
             var arena = std.heap.ArenaAllocator.init(alloc);
             defer arena.deinit();
             const escaped = try escape(arena.allocator(), content);
-            const file = generateFile(arena.allocator(), template, escaped) catch |err| switch (err) {
+            const file = generateFile(arena.allocator(), template, try modFn(arena.allocator(), escaped)) catch |err| switch (err) {
                 Error.InvalidTypstTemplate => @panic("invalid template"),
                 Error.OutOfMemory => return Error.OutOfMemory,
             };
@@ -77,8 +78,26 @@ fn Math(comptime template: []const u8) type {
     };
 }
 
-pub const Content = Math(content_template);
-pub const Block = Math(block_template);
+pub const Content = Math(content_template, mathContent);
+pub const Block = Math(block_template, mathBlock);
+
+fn mathContent(alloc: Allocator, content: []const u8) Allocator.Error![]const u8 {
+    const escaped = try escape(alloc, content);
+    var acc = try std.ArrayList(u8).initCapacity(alloc, escaped.len + 2);
+    try acc.append(alloc, '$');
+    try acc.appendSlice(alloc, escaped);
+    try acc.append(alloc, '$');
+    return try acc.toOwnedSlice(alloc);
+}
+
+fn mathBlock(alloc: Allocator, content: []const u8) Allocator.Error![]const u8 {
+    const escaped = try escape(alloc, content);
+    var acc = try std.ArrayList(u8).initCapacity(alloc, escaped.len + 4);
+    try acc.appendSlice(alloc, "$ ");
+    try acc.appendSlice(alloc, escaped);
+    try acc.appendSlice(alloc, " $");
+    return try acc.toOwnedSlice(alloc);
+}
 
 fn doTest(alloc: Allocator, v: []const u8, r: []const u8) !void {
     const escaped = try escape(alloc, v);

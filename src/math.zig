@@ -42,15 +42,15 @@ test {
         \\$$$
         \\x
         \\$$$
-    , "<figure>" ++ @embedFile("data/test_block_1.svg") ++ "</figure>");
+    , "<figure>" ++ @embedFile("data/block_1.svg") ++ "</figure>");
     try doTest(parse, alloc,
         \\$$$
         \\x^2
         \\$$$
-    , "<figure>" ++ @embedFile("data/test_block_2.svg") ++ "</figure>");
+    , "<figure>" ++ @embedFile("data/block_2.svg") ++ "</figure>");
     try doTest(parse, alloc,
         \\$$$
         \\forall x in RR, quad f(x) = x^2
         \\$$$
-    , "<figure>" ++ @embedFile("data/test_block_3.svg") ++ "</figure>");
+    , "<figure>" ++ @embedFile("data/block_3.svg") ++ "</figure>");
 }

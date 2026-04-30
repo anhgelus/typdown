@@ -30,7 +30,7 @@ pub fn init(alloc: Allocator, tag: []const u8) Error!*Self {
 }
 
 pub fn element(self: *Self) Element {
-    return .{ .vtable = .{ .render = render, .node = getNode }, .ptr = self };
+    return (Element.Wrapper(Self){ .ptr = self }).element();
 }
 
 pub fn setAttribute(self: *Self, k: []const u8, v: []const u8) Error!void {
@@ -57,18 +57,12 @@ pub fn removeClass(self: *Self, v: []const u8) void {
     self.class_list.remove(v);
 }
 
-fn getNode(context: *anyopaque) *Node {
-    const self: *Self = @ptrCast(@alignCast(context));
-    return &self.node;
-}
-
 fn fromNode(context: *anyopaque) Element {
     const self: *Self = @ptrCast(@alignCast(context));
     return self.element();
 }
 
-fn render(context: *anyopaque, alloc: Allocator) Error![]const u8 {
-    const self: *Self = @ptrCast(@alignCast(context));
+pub fn render(self: *Self, alloc: Allocator) Error![]const u8 {
     const attr = try renderAttribute(alloc, &self.attributes, &self.class_list);
     defer if (attr) |it| alloc.free(it);
     var acc = try List(u8).initCapacity(alloc, self.tag.len + 2);

@@ -28,12 +28,7 @@ pub fn init(alloc: Allocator, tag: []const u8) Error!*Self {
 }
 
 pub fn element(self: *Self) Element {
-    return .{ .vtable = .{ .render = render, .node = getNode }, .ptr = self };
-}
-
-fn getNode(context: *anyopaque) *Node {
-    const self: *Self = @ptrCast(@alignCast(context));
-    return &self.node;
+    return (Element.Wrapper(Self){ .ptr = self }).element();
 }
 
 fn fromNode(context: *anyopaque) Element {
@@ -41,8 +36,7 @@ fn fromNode(context: *anyopaque) Element {
     return self.element();
 }
 
-fn render(context: *anyopaque, alloc: Allocator) Error![]const u8 {
-    const self: *Self = @ptrCast(@alignCast(context));
+pub fn render(self: *Self, alloc: Allocator) Error![]const u8 {
     var base = self.base;
     const b = try base.element().render(alloc);
     defer alloc.free(b);

@@ -28,10 +28,7 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn element(self: *Self) Element {
-    return .{ .vtable = .{
-        .render = render,
-        .node = getNode,
-    }, .ptr = self };
+    return (Element.Wrapper(Self){ .ptr = self }).element();
 }
 
 pub fn allocator(self: *Self) Allocator {
@@ -42,18 +39,12 @@ pub fn append(self: *Self, el: Element) void {
     self.content.append(&el.node().node);
 }
 
-fn getNode(context: *anyopaque) *Node {
-    const self: *Self = @ptrCast(@alignCast(context));
-    return &self.node;
-}
-
 fn fromNode(context: *anyopaque) Element {
     const self: *Self = @ptrCast(@alignCast(context));
     return self.element();
 }
 
-fn render(context: *anyopaque, alloc: Allocator) Error![]const u8 {
-    const self: *Self = @ptrCast(@alignCast(context));
+pub fn render(self: *Self, alloc: Allocator) Error![]const u8 {
     if (self.content.first == null) return "";
     var acc = try std.ArrayList(u8).initCapacity(alloc, 8);
     errdefer acc.deinit(alloc);

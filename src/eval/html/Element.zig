@@ -11,9 +11,38 @@ pub const Root = @import("Root.zig");
 
 pub const Error = html.Error || Allocator.Error;
 
+pub fn Wrapper(comptime V: type) type {
+    comptime {
+        if (!@hasField(V, "node")) @compileError("missing field 'node' for " ++ @typeName(V));
+        const nd = @FieldType(V, "node");
+        if (nd != Node) @compileError("invalid node's type: " ++ @typeName(nd) ++ ", want " ++ @typeName(Node));
+        if (!@hasDecl(V, "element")) @compileError("missing declaration 'element' for " ++ @typeName(V));
+        if (!@hasDecl(V, "render")) @compileError("missing declaration 'render' for " ++ @typeName(V));
+    }
+    return struct {
+        ptr: *V,
+
+        const Self = @This();
+
+        fn node(context: *anyopaque) *Node {
+            const self: *V = @ptrCast(@alignCast(context));
+            return &self.node;
+        }
+
+        fn render(context: *anyopaque, alloc: Allocator) Error![]const u8 {
+            const self: *V = @ptrCast(@alignCast(context));
+            return try self.render(alloc);
+        }
+
+        pub fn element(self: Self) Element {
+            return .{ .ptr = self.ptr, .vtable = .{ .node = Self.node, .render = Self.render } };
+        }
+    };
+}
+
 pub const Node = struct {
     ptr: *anyopaque,
-    vtable: struct { element: *const fn (*anyopaque) Self },
+    vtable: struct { element: *const fn (*anyopaque) Element },
     node: std.DoublyLinkedList.Node = .{},
 
     pub fn from(n: *std.DoublyLinkedList.Node) *Node {
@@ -21,12 +50,12 @@ pub const Node = struct {
         return v;
     }
 
-    pub fn element(self: Node) Self {
+    pub fn element(self: Node) Element {
         return self.vtable.element(self.ptr);
     }
 };
 
-const Self = @This();
+const Element = @This();
 
 vtable: struct {
     render: *const fn (*anyopaque, Allocator) Error![]const u8,
@@ -34,15 +63,15 @@ vtable: struct {
 },
 ptr: *anyopaque,
 
-pub fn render(self: Self, alloc: Allocator) Error![]const u8 {
+pub fn render(self: Element, alloc: Allocator) Error![]const u8 {
     return self.vtable.render(self.ptr, alloc);
 }
 
-pub fn node(self: Self) *Node {
+pub fn node(self: Element) *Node {
     return self.vtable.node(self.ptr);
 }
 
-fn doTest(alloc: Allocator, el: Self, exp: []const u8) !void {
+fn doTest(alloc: Allocator, el: Element, exp: []const u8) !void {
     const got = try el.render(alloc);
     defer alloc.free(got);
     std.testing.expect(eql(u8, got, exp)) catch |err| {

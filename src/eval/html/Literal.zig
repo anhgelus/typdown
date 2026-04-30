@@ -28,12 +28,7 @@ pub fn initNoEscape(alloc: Allocator, literal: []const u8) Error!*Element.Litera
 }
 
 pub fn element(self: *Self) Element {
-    return .{ .vtable = .{ .render = render, .node = getNode }, .ptr = self };
-}
-
-fn getNode(context: *anyopaque) *Node {
-    const self: *Self = @ptrCast(@alignCast(context));
-    return &self.node;
+    return (Element.Wrapper(Self){ .ptr = self }).element();
 }
 
 fn fromNode(context: *anyopaque) Element {
@@ -41,7 +36,6 @@ fn fromNode(context: *anyopaque) Element {
     return self.element();
 }
 
-fn render(context: *anyopaque, alloc: Allocator) Error![]const u8 {
-    const self: *Self = @ptrCast(@alignCast(context));
+pub fn render(self: *Self, alloc: Allocator) Error![]const u8 {
     return try alloc.dupe(u8, self.literal);
 }

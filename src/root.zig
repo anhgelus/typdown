@@ -54,16 +54,28 @@ var default_alloc: std.mem.Allocator =
 /// Parse the content.
 /// Code is a pointer to an u8 populated with an error code > 0.
 ///
-/// Returns a not null strings and set the code to 0 if everything is fine.
+/// Returns a non-null void pointer containing the document and set the code to 0 if everything is fine.
 /// Else, it returns null and set an error code above 0.
 /// Use typdown_getErrorString to retrieve the string linked with the error code.
 /// Use parse if you are in Zig.
-export fn typdown_parse(content: [*:0]const u8, code: *u8) ?[*:0]const u8 {
-    const doc = parse(default_alloc, std.mem.span(content)) catch |err| {
+///
+/// You must free the document with typdown_free.
+export fn typdown_parse(content: [*:0]const u8, code: *u8) ?*anyopaque {
+    return parse(default_alloc, std.mem.span(content)) catch |err| {
         code.* = getErrorCode(err);
         return null;
     };
-    defer doc.deinit();
+}
+
+/// Free the document.
+export fn typdown_free(document: *anyopaque) void {
+    const doc: *Document = @ptrCast(@alignCast(document));
+    doc.deinit();
+}
+
+/// Render an HTML from the document.
+export fn typdown_renderHTML(document: *anyopaque, code: *u8) ?[*:0]const u8 {
+    const doc: *Document = @ptrCast(@alignCast(document));
     const res = doc.renderHTML(default_alloc) catch |err| {
         code.* = getErrorCode(err);
         return null;
@@ -88,7 +100,15 @@ fn doTest(content: [*:0]const u8, exp: []const u8, comptime exp_code: u8) !void 
     const expect = std.testing.expect;
 
     var code: u8 = undefined;
-    const raw = typdown_parse(content, &code) orelse {
+    const doc = typdown_parse(content, &code) orelse {
+        expect(code == exp_code) catch |err| {
+            std.debug.print("{}\n", .{code});
+            return err;
+        };
+        return;
+    };
+    defer typdown_free(doc);
+    const raw = typdown_renderHTML(doc, &code) orelse {
         expect(code == exp_code) catch |err| {
             std.debug.print("{}\n", .{code});
             return err;

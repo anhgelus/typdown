@@ -1,5 +1,5 @@
 const std = @import("std");
-const typst = @cImport(@cInclude("typdown_typst.h"));
+const typst = @import("typst");
 const Allocator = std.mem.Allocator;
 const HTML = Element.HTML;
 const Element = @import("Element.zig");

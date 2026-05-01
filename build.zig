@@ -19,7 +19,14 @@ pub fn build(b: *std.Build) void {
         "cargo", "build",
     });
     build_typst.setCwd(b.path(TYPST));
-    if (optimize != .Debug) build_typst.addArg("--release");
+    switch (optimize) {
+        .ReleaseSmall => {
+            build_typst.addArg("--profile");
+            build_typst.addArg("small");
+        },
+        .ReleaseFast, .ReleaseSafe => build_typst.addArg("--release"),
+        else => {},
+    }
 
     const typst = b.addTranslateC(.{
         .root_source_file = b.path(TYPST ++ "/typdown_typst.h"),
@@ -45,7 +52,7 @@ pub fn build(b: *std.Build) void {
 
     const lib = b.addLibrary(.{
         .name = "typdown",
-        .linkage = .dynamic,
+        .linkage = .static,
         .root_module = mod,
         .use_llvm = true, // zig internal backend crashes during linking (for 0.15.2)
     });

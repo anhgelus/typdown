@@ -9,6 +9,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const short = b.option(bool, "short", "skip long tests") orelse false;
+    const no_embed_fonts = b.option(bool, "no-embed-fonts", "dont embed fonts for typst") orelse false;
     const options = b.addOptions();
     options.addOption(bool, "short", short);
 
@@ -19,6 +20,7 @@ pub fn build(b: *std.Build) void {
         "cargo", "build",
     });
     build_typst.setCwd(b.path(TYPST));
+    if (no_embed_fonts) build_typst.addArg("--no-default-features");
     switch (optimize) {
         .ReleaseSmall => {
             build_typst.addArg("--profile");

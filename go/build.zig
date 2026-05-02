@@ -52,6 +52,7 @@ fn buildGo(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builti
     run.setEnvironmentVariable("CC", "zig cc");
     run.setEnvironmentVariable("C++", "zig c++");
     run.setEnvironmentVariable("CGO_ENABLED", "1");
+    run.setEnvironmentVariable("CGO_LDFLAGS", "-L${SRCDIR}/zig-out/lib -ltypdown");
     run.setEnvironmentVariable("GOOS", @tagName(target.result.os.tag));
     return run;
 }

@@ -1,9 +1,5 @@
 const std = @import("std");
 
-const TYPST = "lib/typst";
-const TYPST_DEBUG = TYPST ++ "/target/debug";
-const TYPST_RELEASE = TYPST ++ "/target/release";
-
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -15,23 +11,30 @@ pub fn build(b: *std.Build) void {
 
     const install = b.getInstallStep();
 
+    const typst_dep = b.dependency("typst", .{});
+
     // build typst module
     const build_typst = b.addSystemCommand(&[_][]const u8{
         "cargo", "build",
     });
-    build_typst.setCwd(b.path(TYPST));
+    build_typst.setCwd(typst_dep.path(""));
     if (no_embed_fonts) build_typst.addArg("--no-default-features");
+    var folder: []const u8 = "debug";
     switch (optimize) {
         .ReleaseSmall => {
             build_typst.addArg("--profile");
             build_typst.addArg("small");
+            folder = "small";
         },
-        .ReleaseFast, .ReleaseSafe => build_typst.addArg("--release"),
+        .ReleaseFast, .ReleaseSafe => {
+            build_typst.addArg("--release");
+            folder = "release";
+        },
         else => {},
     }
 
     const typst = b.addTranslateC(.{
-        .root_source_file = b.path(TYPST ++ "/typdown_typst.h"),
+        .root_source_file = typst_dep.path("include/typdown_typst.h"),
         .link_libc = true,
         .target = target,
         .optimize = optimize,
@@ -41,20 +44,18 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{
-            .{ .name = "typst", .module = typst.createModule() },
-        },
+        .link_libc = !target.result.isWasiLibC(),
+        .strip = optimize != .Debug,
     });
-    if (!target.result.isWasiLibC()) mod.link_libc = true;
-    if (optimize != .Debug) mod.strip = true;
     mod.addOptions("config", options);
     // find typst module
-    mod.linkSystemLibrary("typdown_typst", .{ .preferred_link_mode = .static });
-    mod.addLibraryPath(if (optimize == .Debug) b.path(TYPST_DEBUG) else b.path(TYPST_RELEASE));
+    //mod.linkSystemLibrary("typdown_typst", .{ .preferred_link_mode = .static });
+    mod.addObjectFile(typst_dep.path("target").path(b, folder).path(b, "libtypdown_typst.so"));
+    mod.addImport("typst", typst.createModule());
 
     const lib = b.addLibrary(.{
         .name = "typdown",
-        .linkage = .static,
+        .linkage = .dynamic,
         .root_module = mod,
         .use_llvm = true, // zig internal backend crashes during linking (for 0.15.2)
     });
@@ -63,6 +64,8 @@ pub fn build(b: *std.Build) void {
     installed_lib.step.dependOn(&build_typst.step);
     // when emitting headers will be fixed
     //installed_lib.emitted_h = lib.getEmittedH();
+
+    install.dependOn(&installed_lib.step);
 
     const example_mod = b.createModule(.{
         .target = target,
@@ -74,16 +77,6 @@ pub fn build(b: *std.Build) void {
     });
     example_mod.linkLibrary(lib);
     example_mod.addIncludePath(b.path("include"));
-    example_mod.linkSystemLibrary("typdown_typst", .{ .preferred_link_mode = .static });
-    example_mod.addLibraryPath(if (optimize == .Debug) b.path(TYPST_DEBUG) else b.path(TYPST_RELEASE));
-
-    const example = b.addExecutable(.{
-        .name = "example",
-        .root_module = example_mod,
-    });
-    example.step.dependOn(install);
-
-    install.dependOn(&installed_lib.step);
 
     const fmt = b.addFmt(.{
         .paths = &.{
@@ -106,6 +99,13 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_mod_tests.step);
 
     const examples_step = b.step("examples", "Run examples");
+
+    const example = b.addExecutable(.{
+        .name = "example",
+        .root_module = example_mod,
+    });
+    example.step.dependOn(install);
+
     const example_run = b.addRunArtifact(example);
     examples_step.dependOn(&example_run.step);
 

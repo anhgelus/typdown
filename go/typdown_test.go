@@ -7,7 +7,12 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res != `<p>hello world</p>` {
-		t.Errorf("invalid result: %s", res)
+	defer res.Deinit()
+	got, err := res.RenderHTML()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != `<p>hello world</p>` {
+		t.Errorf("invalid result: %s", got)
 	}
 }

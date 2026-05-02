@@ -28,7 +28,11 @@ var (
 	ErrInvalidLink         = errors.New("invalid link")
 )
 
-func Parse(content string) (template.HTML, error) {
+type Document struct {
+	ptr unsafe.Pointer
+}
+
+func Parse(content string) (*Document, error) {
 	code := C.uchar(0)
 	conv := C.CString(content)
 	raw := C.typdown_parse(conv, &code)
@@ -38,8 +42,25 @@ func Parse(content string) (template.HTML, error) {
 		if code == 1 {
 			panic(err)
 		}
+		return nil, err
+	}
+	return &Document{raw}, nil
+}
+
+func (d *Document) Deinit() {
+	C.typdown_free(d.ptr)
+}
+
+func (d *Document) RenderHTML() (template.HTML, error) {
+	code := C.uchar(0)
+	raw := C.typdown_renderHTML(d.ptr, &code)
+	defer C.free(unsafe.Pointer(raw))
+	if code > 0 {
+		err := codeErrors[uint8(code)]
+		if code == 1 {
+			panic(err)
+		}
 		return "", err
 	}
-	defer C.free(unsafe.Pointer(raw))
 	return template.HTML(C.GoString(raw)), nil
 }

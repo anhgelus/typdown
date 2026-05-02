@@ -4,6 +4,8 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const install_step = b.getInstallStep();
+
     const typdown = b.dependency("typdown", .{
         .optimize = optimize,
         .target = target,
@@ -11,15 +13,10 @@ pub fn build(b: *std.Build) !void {
     const lib = b.addLibrary(.{
         .name = "typdown",
         .root_module = typdown,
-        .linkage = .static,
     });
     //lib.bundle_compiler_rt = true;
     //lib.pie = true;
-    const install = b.addInstallArtifact(lib, .{});
-    // when emitting headers will be fixed
-    // currently, we have to use a symlink/copy to get it
-    //installed.emitted_h = lib.getEmittedH();
-    b.getInstallStep().dependOn(&install.step);
+    const install_lib = b.addInstallArtifact(lib, .{});
 
     var flags = try std.ArrayList(u8).initCapacity(b.allocator, 2);
     try flags.appendSlice(b.allocator, "-linkmode external -extldflags -static");
@@ -29,7 +26,8 @@ pub fn build(b: *std.Build) !void {
         "-ldflags", flags.items,
         ".",
     });
-    b.getInstallStep().dependOn(&go_build.step);
+    go_build.step.dependOn(&install_lib.step);
+    install_step.dependOn(&go_build.step);
 
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(b.getInstallStep());
@@ -42,5 +40,5 @@ pub fn build(b: *std.Build) !void {
     if (race) go_test.addArg("-race");
     go_test.addArg("./...");
 
-    test_step.dependOn(&go_test.step);
+    test_step.dependOn(install_step);
 }

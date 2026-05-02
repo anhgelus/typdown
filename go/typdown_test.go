@@ -7,7 +7,7 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer res.Deinit()
+	defer res.Close()
 	got, err := res.RenderHTML()
 	if err != nil {
 		t.Fatal(err)

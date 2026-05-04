@@ -17,4 +17,4 @@ char * typdown_getErrorString(uint8_t);
 
 struct typdown_Document typdown_parse(char *);
 void typdown_free(struct typdown_Document);
-char * typdown_renderHTML(struct typdown_Document, uint8_t *);
+char * typdown_renderHTML(void *, uint8_t *);

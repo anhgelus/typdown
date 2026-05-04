@@ -1,11 +1,16 @@
 package typdown
 
-// #cgo LDFLAGS: -L${SRCDIR}/zig-out/lib -ltypdown
-// #include <stdlib.h>
-// #include "typdown.h"
+/*
+#cgo LDFLAGS: -L${SRCDIR}/zig-out/lib -ltypdown
+#include <stdlib.h>
+#include "typdown.h"
+
+typedef struct typdown_Document Document;
+*/
 import "C"
 import (
 	"errors"
+	"fmt"
 	"html/template"
 	"unsafe"
 )
@@ -36,32 +41,62 @@ var (
 	ErrInvalidMathBlock    = errors.New("invalid math block")
 )
 
-type Document struct {
-	ptr unsafe.Pointer
+type Error struct {
+	code     uint8
+	source   *string
+	location ErrorLocation
 }
 
-func Parse(content string) (*Document, error) {
-	code := C.uchar(0)
+func (e Error) Unwrap() error {
+	return codeErrors[uint8(e.code)]
+}
+
+func (e Error) Error() string {
+	loc := e.location
+	return fmt.Sprintf("%s: %s (line %d)", e.Unwrap().Error(), loc.source, loc.line)
+}
+
+func (e Error) Is(err error) bool {
+	return errors.Is(e.Unwrap(), err)
+}
+
+type ErrorLocation struct {
+	source string
+	line   uint
+}
+
+type Document struct {
+	Errors []Error
+	embed  C.Document
+}
+
+func Parse(content string) Document {
 	conv := C.CString(content)
-	raw := C.typdown_parse(conv, &code)
 	defer C.free(unsafe.Pointer(conv))
-	if code > 0 {
-		err := codeErrors[uint8(code)]
-		if code == 1 {
-			panic(err)
+	rawDoc := C.typdown_parse(conv)
+	doc := Document{embed: rawDoc}
+	if rawDoc.errors_len > 0 {
+		doc.Errors = make([]Error, rawDoc.errors_len)
+		errs := unsafe.Slice(rawDoc.errors, rawDoc.errors_len)
+		for i := range rawDoc.errors_len {
+			raw := errs[i]
+			doc.Errors[i] = Error{
+				code:     uint8(raw.code),
+				source:   &content,
+				location: ErrorLocation{source: content[raw.location.beg:raw.location.end], line: uint(raw.location.line)},
+			}
 		}
-		return nil, err
 	}
-	return &Document{raw}, nil
+	return doc
 }
 
 func (d *Document) Close() {
-	C.typdown_free(d.ptr)
+	C.typdown_free(d.embed)
 }
 
 func (d *Document) RenderHTML() (template.HTML, error) {
 	code := C.uchar(0)
-	raw := C.typdown_renderHTML(d.ptr, &code)
+	raw := C.typdown_renderHTML(d.embed.root, &code)
 	defer C.free(unsafe.Pointer(raw))
 	if code > 0 {
 		err := codeErrors[uint8(code)]

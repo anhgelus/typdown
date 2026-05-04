@@ -18,7 +18,7 @@ void foo(char *v) {
         return;
     }
     uint8_t code;
-    char *res = typdown_renderHTML(doc, &code);
+    char *res = typdown_renderHTML(doc.root, &code);
     if (code != 0) {
         printf("cannot render '%s', error: %s (%d)\n", v, typdown_getErrorString(code), code);
         typdown_free(doc);

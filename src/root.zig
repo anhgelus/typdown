@@ -108,8 +108,8 @@ export fn typdown_free(self: typdown_Document) void {
 }
 
 /// Render an HTML from the document.
-export fn typdown_renderHTML(document: typdown_Document, code: *u8) ?[*:0]const u8 {
-    const root: *Element.Root = @ptrCast(@alignCast(document.root));
+export fn typdown_renderHTML(context: *anyopaque, code: *u8) ?[*:0]const u8 {
+    const root: *Element.Root = @ptrCast(@alignCast(context));
     const res = root.renderHTML(default_alloc) catch |err| {
         code.* = getErrorCode(err);
         return null;
@@ -136,7 +136,7 @@ fn doTest(content: [*:0]const u8, exp: []const u8, comptime exp_code: u8) !void 
         return try expect(false);
     }
     var code: u8 = undefined;
-    const raw = typdown_renderHTML(doc, &code) orelse {
+    const raw = typdown_renderHTML(doc.root, &code) orelse {
         expect(code == exp_code) catch |err| {
             std.debug.print("{}\n", .{code});
             return err;

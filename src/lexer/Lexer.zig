@@ -9,6 +9,7 @@ iter: unicode.Utf8Iterator,
 force_lit: bool = false,
 before: ?Token = null,
 new_line: bool = true,
+current_line: usize = 1,
 
 const Self = @This();
 
@@ -38,6 +39,7 @@ pub fn next(self: *Self) ?Token {
     var current_kind: ?Token.Kind = null;
     while (self.iter.nextCodepointSlice()) |rune| {
         if (eql(u8, rune, "\r")) continue;
+        if (eql(u8, rune, "\n")) self.current_line += 1;
         var override_if: ?[]const u8 = null;
         // escape chars
         if (eql(u8, rune, "\\")) {
@@ -243,6 +245,8 @@ test "lexer image" {
 }
 
 test "lexer multiline" {
+    const expect = std.testing.expect;
+
     var l = try init(
         \\# Title
         \\
@@ -255,20 +259,35 @@ test "lexer multiline" {
     );
 
     try doTest(&l, .title, "#");
+    try expect(l.current_line == 1);
     try doTest(&l, .literal, "Title");
+    try expect(l.current_line == 1);
     try doTest(&l, .strong_delimiter, "\n\n");
+    try expect(l.current_line == 3);
     try doTest(&l, .literal, "paragraph");
+    try expect(l.current_line == 3);
     try doTest(&l, .weak_delimiter, "\n");
+    try expect(l.current_line == 4);
     try doTest(&l, .title, "#");
+    try expect(l.current_line == 4);
     try doTest(&l, .literal, "a title");
+    try expect(l.current_line == 4);
     try doTest(&l, .weak_delimiter, "\n");
+    try expect(l.current_line == 5);
     try doTest(&l, .literal, "a # in sentence");
+    try expect(l.current_line == 5);
     try doTest(&l, .strong_delimiter, "\n\n");
+    try expect(l.current_line == 7);
     try doTest(&l, .tag, "#");
+    try expect(l.current_line == 7);
     try doTest(&l, .literal, "tag");
+    try expect(l.current_line == 7);
     try doTest(&l, .weak_delimiter, "\n");
+    try expect(l.current_line == 8);
     try doTest(&l, .tag, "#");
+    try expect(l.current_line == 8);
     try doTest(&l, .literal, "tag2");
+    try expect(l.current_line == 8);
 
     try std.testing.expect(l.next() == null);
 }
@@ -299,8 +318,14 @@ test "trim space" {
     );
 
     try expect(l.next().?.equals(.quote, ">"));
+    try expect(l.current_line == 1);
     try expect(l.next().?.equals(.literal, "hello"));
+    try expect(l.current_line == 1);
     try expect(l.next().?.equals(.weak_delimiter, "\n"));
+    try expect(l.current_line == 2);
     try expect(l.next().?.equals(.quote, ">"));
+    try expect(l.current_line == 2);
     try expect(l.next().?.equals(.literal, "world"));
+    try expect(l.current_line == 2);
+    try expect(l.next() == null);
 }

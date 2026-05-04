@@ -25,29 +25,31 @@ pub const Error = error{FeatureNotSupported} ||
     math.Error ||
     Allocator.Error;
 
+const Self = @This();
+
 /// Document represents a parsed typdown document.
 pub const Document = struct {
     /// Root of the document: used to render the document is other languages.
     root: *Element.Root,
     /// Errors got while parsing the document.
-    errors: ?[]DocError = null,
+    errors: ?[]Document.Error = null,
+
+    /// DocError contains information about the error.
+    pub const Error = struct {
+        /// Error returned.
+        err: Self.Error,
+        /// Location of the error in the source.
+        location: struct { beg: usize, end: usize, line: usize },
+
+        /// Extract the invalid content from the source.
+        pub fn extract(self: @This(), source: []const u8) []const u8 {
+            return source[self.location.beg..self.location.end];
+        }
+    };
 
     pub fn deinit(self: @This(), alloc: Allocator) void {
         self.root.deinit();
         if (self.errors) |errors| alloc.free(errors);
-    }
-};
-
-/// DocError contains information about the error.
-pub const DocError = struct {
-    /// Error returned.
-    err: Error,
-    /// Location of the error in the source.
-    location: struct { beg: usize, end: usize },
-
-    /// Extract the invalid content from the source.
-    pub fn extract(self: @This(), source: []const u8) []const u8 {
-        return source[self.location.beg..self.location.end];
     }
 };
 
@@ -66,7 +68,7 @@ fn gen(parent: Allocator, l: *Lexer) Allocator.Error!Document {
     var root = try Element.Root.init(parent);
     errdefer root.deinit();
     const alloc = root.allocator();
-    var doc_errors = std.ArrayList(DocError).empty;
+    var doc_errors = std.ArrayList(Document.Error).empty;
     errdefer doc_errors.deinit(parent);
     base: while (l.peek()) |it| {
         const beg = l.iter.i;
@@ -93,7 +95,10 @@ fn gen(parent: Allocator, l: *Lexer) Allocator.Error!Document {
             if (err == Error.OutOfMemory) return Error.OutOfMemory;
             var end = l.iter.i;
             if (beg == end) end += 1;
-            try doc_errors.append(parent, .{ .err = err, .location = .{ .beg = beg, .end = end } });
+            try doc_errors.append(parent, .{
+                .err = err,
+                .location = .{ .beg = beg, .end = end, .line = l.current_line },
+            });
             _ = l.next();
             // consume until next delimiter
             while (l.next()) |next| if (next.kind.isDelimiter()) continue :base;

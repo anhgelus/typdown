@@ -53,7 +53,7 @@ const typdown_Document = extern struct {
 
     const typdown_Error = extern struct {
         code: u8,
-        location: extern struct { beg: usize, end: usize },
+        location: extern struct { beg: usize, end: usize, line: usize },
     };
 };
 
@@ -65,7 +65,7 @@ fn from(alloc: Allocator, doc: Document) typdown_Document {
         for (errors) |err| {
             res.errors.?[0] = .{
                 .code = getErrorCode(err.err),
-                .location = .{ .beg = err.location.beg, .end = err.location.end },
+                .location = .{ .beg = err.location.beg, .end = err.location.end, .line = err.location.line },
             };
         }
         res.errors_len = errors.len;
@@ -75,7 +75,7 @@ fn from(alloc: Allocator, doc: Document) typdown_Document {
 
 fn fromError(alloc: Allocator, err: Error) typdown_Document {
     var v = alloc.alloc(typdown_Document.typdown_Error, 1) catch |e| @panic(@errorName(e));
-    v[0] = .{ .code = getErrorCode(err), .location = .{ .beg = 0, .end = 0 } };
+    v[0] = .{ .code = getErrorCode(err), .location = .{ .beg = 0, .end = 0, .line = 0 } };
     return .{ .errors = v.ptr, .errors_len = 1 };
 }
 

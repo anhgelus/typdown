@@ -4,7 +4,7 @@
 
 struct typdown_Error {
     uint8_t code;
-    struct {size_t beg; size_t end;} location;
+    struct {size_t beg; size_t end; size_t line;} location;
 };
 
 struct typdown_Document {

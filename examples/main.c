@@ -9,7 +9,7 @@ void foo(char *v) {
         for (int i = 0; i < doc.errors_len; i++) {
             struct typdown_Error error = doc.errors[i];
             printf("cannot parse '%s', error: %s (%d)\n", v, typdown_getErrorString(error.code), error.code);
-            printf("%d to %d ", error.location.beg, error.location.end);
+            printf("line %d: ", error.location.line);
             for (int j = error.location.beg; j < error.location.end; j++)
                 printf("%c", v[j]);
             printf("\n");

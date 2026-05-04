@@ -4,13 +4,20 @@
 #include <typdown.h>
 
 void foo(char *v) {
-    uint8_t code;
-    void *doc = typdown_parse(v, &code);
-    if (code != 0) {
-        printf("cannot parse '%s', error: %s (%d)\n", v, typdown_getErrorString(code), code);
+    struct typdown_Document doc = typdown_parse(v);
+    if (doc.errors != NULL) {
+        for (int i = 0; i < doc.errors_len; i++) {
+            struct typdown_Error error = doc.errors[i];
+            printf("cannot parse '%s', error: %s (%d)\n", v, typdown_getErrorString(error.code), error.code);
+            printf("%d to %d ", error.location.beg, error.location.end);
+            for (int j = error.location.beg; j < error.location.end; j++)
+                printf("%c", v[j]);
+            printf("\n");
+        }
         typdown_free(doc);
         return;
     }
+    uint8_t code;
     char *res = typdown_renderHTML(doc, &code);
     if (code != 0) {
         printf("cannot render '%s', error: %s (%d)\n", v, typdown_getErrorString(code), code);
@@ -31,6 +38,6 @@ int main() {
     // invalid
     foo("hello *world");
     foo("hello world :::");
-    foo("# hello :::");
+    foo("# hello :::");
     return 0;
 }

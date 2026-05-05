@@ -83,6 +83,14 @@ pub fn node(self: Element) *Node {
     return self.vtable.node(self.ptr);
 }
 
+pub fn as(self: Element, comptime V: type) *V {
+    comptime {
+        if (!std.meta.hasMethod(V, "element")) @compileError("missing declaration 'element' for " ++ @typeName(V));
+    }
+    const v: *V = @ptrCast(@alignCast(self.ptr));
+    return v;
+}
+
 pub const Literal = struct {
     content: []const u8,
     node: Node = .{

@@ -71,9 +71,8 @@ pub fn parseImage(alloc: Allocator, l: *Lexer) ImageError!Element {
         .weak_delimiter => l.consume(),
         else => return ImageError.InvalidImage,
     }
-    const p = try paragraph.parse(alloc, l);
-    const p_el: *Element.paragraph.Block = @ptrCast(@alignCast(p.ptr));
-    el.caption = (try p_el.toRoot(alloc)).element();
+    const p = (try paragraph.parse(alloc, l)).as(Element.paragraph.Block);
+    el.caption = (try p.toRoot(alloc)).element();
     return el.element();
 }
 

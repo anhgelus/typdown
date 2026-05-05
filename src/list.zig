@@ -35,9 +35,8 @@ fn parse(alloc: Allocator, content: *std.ArrayList(Element), l: *Lexer, comptime
         },
         .strong_delimiter => return,
         else => {
-            const p = try paragraph.parse(alloc, l);
-            const p_el: *Element.paragraph.Block = @ptrCast(@alignCast(p.ptr));
-            try content.append(alloc, p_el.content.?);
+            const p = (try paragraph.parse(alloc, l)).as(Element.paragraph.Block);
+            try content.append(alloc, p.content.?);
         },
     };
 }

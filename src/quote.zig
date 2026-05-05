@@ -33,9 +33,8 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         l.consume();
         return el.element();
     }
-    const attr = try paragraph.parse(alloc, l);
-    const p_el: *Element.paragraph.Block = @ptrCast(@alignCast(attr.ptr));
-    el.caption = (try p_el.toRoot(alloc)).element();
+    const p = (try paragraph.parse(alloc, l)).as(Element.paragraph.Block);
+    el.caption = (try p.toRoot(alloc)).element();
     return el.element();
 }
 

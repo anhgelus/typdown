@@ -9,8 +9,6 @@ pub fn build(b: *std.Build) void {
     const options = b.addOptions();
     options.addOption(bool, "short", short);
 
-    const install = b.getInstallStep();
-
     const typst_dep = b.dependency("typst", .{});
 
     // build typst module
@@ -22,8 +20,7 @@ pub fn build(b: *std.Build) void {
     var folder: []const u8 = "debug";
     switch (optimize) {
         .ReleaseSmall => {
-            build_typst.addArg("--profile");
-            build_typst.addArg("small");
+            build_typst.addArgs(&.{ "--profile", "small" });
             folder = "small";
         },
         .ReleaseFast, .ReleaseSafe => {
@@ -48,8 +45,7 @@ pub fn build(b: *std.Build) void {
         .strip = optimize != .Debug,
     });
     mod.addOptions("config", options);
-    // find typst module
-    //mod.linkSystemLibrary("typdown_typst", .{ .preferred_link_mode = .static });
+    // add typst module
     mod.addObjectFile(typst_dep.path("target").path(b, folder).path(b, "libtypdown_typst.so"));
     mod.addImport("typst", typst.createModule());
 
@@ -72,7 +68,6 @@ pub fn build(b: *std.Build) void {
             "build.zig.zon",
         },
     });
-
     lib.step.dependOn(&fmt.step);
 
     const exe = b.addExecutable(.{
@@ -94,11 +89,10 @@ pub fn build(b: *std.Build) void {
         .root_module = mod,
         .use_llvm = true, // zig internal backend crashes during linking (for 0.15.2)
     });
-    exe_tests.step.dependOn(install);
 
-    const run_mod_tests = b.addRunArtifact(exe_tests);
-    generateSVG(b, &run_mod_tests.step) catch |err| run_mod_tests.step.addError("{}\n", .{err}) catch unreachable;
-    test_step.dependOn(&run_mod_tests.step);
+    generateSVG(b, &exe_tests.step) catch |err| exe_tests.step.addError("{}\n", .{err}) catch unreachable;
+    const run_tests = b.addRunArtifact(exe_tests);
+    test_step.dependOn(&run_tests.step);
 
     const examples_step = b.step("examples", "Run examples");
     const example_mod = b.createModule(.{
@@ -116,7 +110,7 @@ pub fn build(b: *std.Build) void {
         .name = "example",
         .root_module = example_mod,
     });
-    example.step.dependOn(install);
+    example.step.dependOn(&lib.step);
 
     const example_run = b.addRunArtifact(example);
     examples_step.dependOn(&example_run.step);
@@ -127,7 +121,6 @@ pub fn build(b: *std.Build) void {
     const exe_run = b.step("run", "Run the CLI");
     const run_cmd = b.addRunArtifact(exe);
     exe_run.dependOn(&run_cmd.step);
-    exe_run.dependOn(install);
     if (b.args) |args| run_cmd.addArgs(args);
 }
 

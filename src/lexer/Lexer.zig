@@ -119,7 +119,7 @@ fn getCurrentKind(self: *Self, before: ?Token.Kind, rune: []const u8, acc: []con
     if (is('#', 6, rune, acc)) return .{ .kind = self.requiresDelimiter(before, .title) };
     if (isIn(links, rune, acc, before, .link)) return .{ .kind = .link };
     if (isIn(refs, rune, acc, before, .ref)) return .{ .kind = .ref };
-    if (isOneOrThree(":", rune, acc, .ref, .callout)) |it| return it;
+    if (eql(u8, rune, ":") and std.mem.endsWith(u8, acc, "::")) return .{ .kind = .callout };
     if (isOneOrThree("$", rune, acc, .math, .math_block)) |it| return it;
     if (isOneOrThree("`", rune, acc, .code, .code_block)) |it| return it;
     return .{ .kind = .literal };
@@ -212,8 +212,7 @@ test "lexer common" {
     var l = try init("## hello world :)");
 
     try doTest(&l, .title, "##");
-    try doTest(&l, .literal, "hello world ");
-    try doTest(&l, .ref, ":");
+    try doTest(&l, .literal, "hello world :");
     try doTest(&l, .link, ")");
 
     try std.testing.expect(l.next() == null);

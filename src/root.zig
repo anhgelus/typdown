@@ -135,7 +135,7 @@ fn doTest(content: [*:0]const u8, exp: []const u8, comptime exp_code: u8) !void 
         return try expect(false);
     }
     var code: u8 = undefined;
-    const raw = typdown_renderHTML(doc.root, &code) orelse {
+    const raw = typdown_renderHTML(doc.root.?, &code) orelse {
         expect(code == exp_code) catch |err| {
             std.debug.print("{}\n", .{code});
             return err;

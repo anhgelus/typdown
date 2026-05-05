@@ -49,7 +49,7 @@ videretur, cum omni dolore detracto, nam quoniam, cum.
 :::
 
 $$$
-forall s in CC, quad zeta(s) = product_(p text(" is prime")) 1/(1-p^(-s))
+forall s in CC, quad zeta(s) = product_(p text("is prime")) 1/(1-p^(-s))
 $$$
 
 ## Ut enim aeque doleamus animo

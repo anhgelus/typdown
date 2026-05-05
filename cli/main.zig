@@ -46,6 +46,16 @@ fn html(parent: Allocator, args: *std.process.ArgIterator) !void {
         const content = try cwd.readFileAlloc(alloc, path, 1024 * 1024 * 1024);
 
         var doc = try typdown.parse(alloc, content);
+        if (doc.errors) |errors| {
+            var buffer: [1024]u8 = undefined;
+            var stdout = std.fs.File.stdout().writer(&buffer).interface;
+            try stdout.print("Errors:\n\n", .{});
+            for (errors) |err| {
+                try stdout.print("{}: {s}\n\n", .{err.err, err.extract(content)});
+                try stdout.flush();
+            }
+            std.process.exit(2);
+        }
         const res = try doc.root.renderHTML(alloc);
 
         _ = try std.fs.File.stdout().write(res);

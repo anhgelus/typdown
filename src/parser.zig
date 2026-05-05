@@ -133,10 +133,28 @@ test "parse multilines" {
 
     try doTest(alloc,
         \\# title
+        \\
         \\hello world ;3
+        \\
         \\## subtitle
         \\hehe
     , "<h1>title</h1><p>hello world ;3</p><h2>subtitle</h2><p>hehe</p>");
+
+    try doTest(alloc,
+        \\# Title
+        \\
+        \\A paragraph with *bold elements* and _italic_.
+        \\Also supports `code`, math like 2x+3.
+        \\
+        \\## Blocks
+        \\
+        \\Existing blocks:
+        \\- unordered list
+        \\- with multiple items
+        \\
+        \\. ordered list
+        \\. with multiple items :D
+    , "<h1>Title</h1><p>A paragraph with <b>bold elements</b> and <em>italic</em>. Also supports <code>code</code>, math like 2x+3.</p><h2>Blocks</h2><p>Existing blocks:</p><ul><li>unordered list</li><li>with multiple items</li></ul><ol><li>ordered list</li><li>with multiple items :D</li></ol>");
 }
 
 test "multiple render doc" {

@@ -22,13 +22,6 @@ pub fn init(content: []const u8) error{InvalidUtf8}!Self {
     return .{ .content = content, .iter = view.iterator() };
 }
 
-// Must free bytes in iter.
-pub fn initReader(alloc: Allocator, r: *std.io.Reader) !Self {
-    var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
-    try r.appendRemainingUnlimited(alloc, &acc);
-    return init(try acc.toOwnedSlice(alloc));
-}
-
 pub fn next(self: *Self) ?Token {
     if (self.before) |it| {
         self.consume();

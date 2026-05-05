@@ -59,24 +59,11 @@ pub fn build(b: *std.Build) void {
         .root_module = mod,
         .use_llvm = true, // zig internal backend crashes during linking (for 0.15.2)
     });
+    lib.step.dependOn(&build_typst.step);
 
-    const installed_lib = b.addInstallArtifact(lib, .{});
-    installed_lib.step.dependOn(&build_typst.step);
+    b.installArtifact(lib);
     // when emitting headers will be fixed
     //installed_lib.emitted_h = lib.getEmittedH();
-
-    install.dependOn(&installed_lib.step);
-
-    const example_mod = b.createModule(.{
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-    });
-    example_mod.addCSourceFile(.{
-        .file = b.path("examples/main.c"),
-    });
-    example_mod.linkLibrary(lib);
-    example_mod.addIncludePath(b.path("include"));
 
     const fmt = b.addFmt(.{
         .paths = &.{
@@ -85,7 +72,22 @@ pub fn build(b: *std.Build) void {
             "build.zig.zon",
         },
     });
-    install.dependOn(&fmt.step);
+
+    lib.step.dependOn(&fmt.step);
+
+    const exe = b.addExecutable(.{
+        .name = "typdown",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("cli/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+        .use_llvm = true,
+    });
+    exe.root_module.addImport("typdown", mod);
+    exe.step.dependOn(&lib.step);
+
+    b.installArtifact(exe);
 
     const test_step = b.step("test", "Run tests");
     const exe_tests = b.addTest(.{
@@ -99,6 +101,16 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_mod_tests.step);
 
     const examples_step = b.step("examples", "Run examples");
+    const example_mod = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    example_mod.addCSourceFile(.{
+        .file = b.path("examples/main.c"),
+    });
+    example_mod.linkLibrary(lib);
+    example_mod.addIncludePath(b.path("include"));
 
     const example = b.addExecutable(.{
         .name = "example",
@@ -111,6 +123,12 @@ pub fn build(b: *std.Build) void {
 
     const check = b.step("check", "Check if foo compiles");
     check.dependOn(&lib.step);
+
+    const exe_run = b.step("run", "Run the CLI");
+    const run_cmd = b.addRunArtifact(exe);
+    exe_run.dependOn(&run_cmd.step);
+    exe_run.dependOn(install);
+    if (b.args) |args| run_cmd.addArgs(args);
 }
 
 fn generateSVG(b: *std.Build, step: *std.Build.Step) !void {

@@ -9,7 +9,6 @@ pub const Error = parser.Error;
 ///
 /// Use typdown_parse if you are not in Zig.
 pub const parse = parser.parse;
-pub const parseReader = parser.parseReader;
 
 inline fn getErrorCode(err: Error) u8 {
     return switch (err) {

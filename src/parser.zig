@@ -53,12 +53,6 @@ pub const Document = struct {
     }
 };
 
-pub fn parseReader(parent: Allocator, r: *std.io.Reader) !Document {
-    var l = try Lexer.initReader(parent, r);
-    defer parent.free(l.iter.bytes);
-    return gen(parent, &l);
-}
-
 pub fn parse(parent: Allocator, content: []const u8) !Document {
     var l = try Lexer.init(content);
     return gen(parent, &l);

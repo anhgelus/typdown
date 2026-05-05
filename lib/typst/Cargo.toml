@@ -21,6 +21,4 @@ inherits = "release"
 opt-level = "s"
 
 [features]
-default = ["embed-fonts"]
-
 embed-fonts = ["typst-kit/embed-fonts"]

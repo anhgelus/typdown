@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
         "cargo", "build",
     });
     build_typst.setCwd(typst_dep.path(""));
-    if (no_embed_fonts) build_typst.addArg("--no-default-features");
+    if (!no_embed_fonts) build_typst.addArgs(&.{ "--features", "embed-fonts" });
     var folder: []const u8 = "debug";
     switch (optimize) {
         .ReleaseSmall => {
@@ -58,8 +58,6 @@ pub fn build(b: *std.Build) void {
     lib.step.dependOn(&build_typst.step);
 
     b.installArtifact(lib);
-    // when emitting headers will be fixed
-    //installed_lib.emitted_h = lib.getEmittedH();
 
     const fmt = b.addFmt(.{
         .paths = &.{

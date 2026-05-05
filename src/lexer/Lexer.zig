@@ -38,9 +38,9 @@ pub fn next(self: *Self) ?Token {
         if (current_kind != .escaped) self.force_lit = false;
         override_if = res.override_if;
         end = self.iter.i;
-        self.context.new_block = current_kind.?.isDelimiter();
         // conds here to avoid creating complex condition in while
         var next_rune = self.iter.peek(1);
+        if (!eql(u8, rune, next_rune)) self.context.new_block = current_kind.?.isDelimiter();
         const next_kind = self.getCurrentKind(current_kind, next_rune, self.content[beg..end]).kind;
         if (next_kind == .escaped) self.force_lit = false;
         if (current_kind.?.requiresSpace() and next_kind != current_kind.?) {
@@ -91,8 +91,8 @@ const kindRes = struct {
     }
 };
 
-fn requiresDelimiter(self: *Self, before: ?Token.Kind, knd: Token.Kind) Token.Kind {
-    return if (self.context.new_block or (before != null and before.? == knd)) knd else .literal;
+fn requiresDelimiter(self: *Self, knd: Token.Kind) Token.Kind {
+    return if (self.context.new_block) knd else .literal;
 }
 
 const links = &[_][]const u8{ "[", "](", ")" };
@@ -112,16 +112,21 @@ fn getCurrentKind(self: *Self, before: ?Token.Kind, rune: []const u8, acc: []con
     }
     if (eql(u8, rune, "*")) return .{ .kind = .bold };
     if (eql(u8, rune, "_")) return .{ .kind = .italic };
-    if (eql(u8, rune, ">")) return .{ .kind = self.requiresDelimiter(before, .quote) };
-    if (eql(u8, rune, ".")) return .{ .kind = self.requiresDelimiter(before, .list_ordored) };
-    if (eql(u8, rune, "-")) return .{ .kind = self.requiresDelimiter(before, .list_unordored) };
-    if (eql(u8, rune, "!")) return .{ .kind = self.requiresDelimiter(before, .image) };
-    if (is('#', 6, rune, acc)) return .{ .kind = self.requiresDelimiter(before, .title) };
+    if (eql(u8, rune, ">")) return .{ .kind = self.requiresDelimiter(.quote) };
+    if (eql(u8, rune, ".")) return .{ .kind = self.requiresDelimiter(.list_ordored) };
+    if (eql(u8, rune, "-")) return .{ .kind = self.requiresDelimiter(.list_unordored) };
+    if (eql(u8, rune, "!")) return .{ .kind = self.requiresDelimiter(.image) };
+    if (is('#', 6, rune, acc)) return .{ .kind = self.requiresDelimiter(.title) };
     if (isIn(links, rune, acc, before, .link)) return .{ .kind = .link };
     if (isIn(refs, rune, acc, before, .ref)) return .{ .kind = .ref };
-    if (eql(u8, rune, ":") and std.mem.endsWith(u8, acc, "::")) return .{ .kind = .callout };
-    if (isOneOrThree("$", rune, acc, .math, .math_block)) |it| return it;
-    if (isOneOrThree("`", rune, acc, .code, .code_block)) |it| return it;
+    if (eql(u8, rune, ":") and (eql(u8, acc, ":") or eql(u8, acc, "::"))) {
+        return .{
+            .kind = if (acc.len == 2) self.requiresDelimiter(.callout) else .literal,
+            .override_if = rune,
+        };
+    }
+    if (self.isOneOrThree("$", rune, acc, .math, .math_block)) |it| return it;
+    if (self.isOneOrThree("`", rune, acc, .code, .code_block)) |it| return it;
     return .{ .kind = .literal };
 }
 
@@ -144,7 +149,7 @@ fn isIn(ops: []const []const u8, rune: []const u8, p: []const u8, before: ?Token
     return false;
 }
 
-fn isOneOrThree(op: []const u8, rune: []const u8, p: []const u8, one: Token.Kind, three: Token.Kind) ?kindRes {
+fn isOneOrThree(self: *Self, op: []const u8, rune: []const u8, p: []const u8, one: Token.Kind, three: Token.Kind) ?kindRes {
     if (!eql(u8, rune, op)) return null;
     var acc = p;
     if (acc.len < op.len or !eql(u8, acc[0..op.len], op)) acc = &[_]u8{};
@@ -164,7 +169,7 @@ fn isOneOrThree(op: []const u8, rune: []const u8, p: []const u8, one: Token.Kind
             .kind = .literal,
             .override_if = op,
         },
-        3 => .{ .kind = three },
+        3 => .{ .kind = self.requiresDelimiter(three) },
         else => unreachable,
     };
 }
@@ -175,21 +180,6 @@ fn doTest(l: *Self, k: Token.Kind, v: []const u8) !void {
         std.debug.print("{}({s})\n", .{ first.kind, first.content });
         return err;
     };
-}
-
-test "one or three" {
-    const expect = std.testing.expect;
-
-    // valid
-    try expect(isOneOrThree(":", ":", "", .ref, .callout).?.equals(.{ .kind = .ref, .override_if = ":" }));
-    try expect(isOneOrThree(":", ":", ":", .ref, .callout).?.equals(.{ .kind = .literal, .override_if = ":" }));
-    try expect(isOneOrThree(":", ":", "::", .ref, .callout).?.equals(.{ .kind = .callout }));
-    try expect(isOneOrThree(":", ":", "a", .ref, .callout).?.equals(.{ .kind = .ref, .override_if = ":" }));
-
-    // invalid
-    try expect(isOneOrThree(":", "a", "", .ref, .callout) == null);
-    try expect(isOneOrThree(":", "a", "b", .ref, .callout) == null);
-    try expect(isOneOrThree(":", "a", ":", .ref, .callout) == null);
 }
 
 test "is" {
@@ -215,6 +205,14 @@ test "lexer common" {
     try doTest(&l, .literal, "hello world :");
     try doTest(&l, .link, ")");
 
+    try std.testing.expect(l.next() == null);
+
+    l = try init(":::");
+    try doTest(&l, .callout, ":::");
+    try std.testing.expect(l.next() == null);
+
+    l = try init("owo :::");
+    try doTest(&l, .literal, "owo :::");
     try std.testing.expect(l.next() == null);
 }
 

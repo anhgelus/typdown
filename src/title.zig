@@ -6,7 +6,6 @@ const Element = @import("eval/Element.zig");
 const paragraph = @import("paragraph.zig");
 const testing = @import("testing.zig");
 const doTest = testing.do;
-const doTestError = testing.doError;
 
 pub const Error = error{InvalidTitleContent} || paragraph.Error;
 
@@ -30,6 +29,4 @@ test "parse title" {
     try doTest(parse, alloc, "### hey", "<h3>hey</h3>");
 
     try doTest(parse, alloc, "# hello *world*", "<h1>hello <b>world</b></h1>");
-
-    try doTestError(parse, alloc, "# aa :::", Error.InvalidTitleContent);
 }

@@ -91,7 +91,6 @@ test "parse links" {
     try doTest(parse, alloc, "[f*o*o](bar)", "<a href=\"bar\">f<b>o</b>o</a>");
     try doTest(parse, alloc, ")", ")");
 
-    try doTestError(parse, alloc, "[foo :::](bar)", Error.IllegalPlacement);
     try doTestError(parse, alloc, "[foo", Error.InvalidLink);
     try doTestError(parse, alloc, "[foo](", Error.InvalidLink);
     try doTestError(parse, alloc, "[foo]()", Error.InvalidLink);

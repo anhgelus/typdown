@@ -6,7 +6,6 @@ const Element = @import("eval/Element.zig");
 const paragraph = @import("paragraph.zig");
 const testing = @import("testing.zig");
 const doTest = testing.do;
-const doTestError = testing.doError;
 
 pub const Error = paragraph.Error || Allocator.Error;
 
@@ -57,8 +56,6 @@ test "parse ordored list" {
         \\
         \\no more
     , "<ol><li>one</li><li>two multi line</li><li>three</li></ol>");
-
-    try doTestError(parseOrdored, alloc, ".one :::", Error.IllegalPlacement);
 }
 
 test "parse unordored list" {
@@ -74,6 +71,4 @@ test "parse unordored list" {
         \\
         \\no more
     , "<ul><li>one</li><li>two</li></ul>");
-
-    try doTestError(parseOrdored, alloc, "- one :::", Error.IllegalPlacement);
 }

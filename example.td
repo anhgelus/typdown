@@ -12,7 +12,7 @@ Existing blocks:
 . ordered list
 . with multiple items :D
 
-<ref: Defining footnotes
+<ref>: Defining footnotes
 
 > A quote
 > yay

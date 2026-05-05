@@ -163,5 +163,4 @@ test "exported parse" {
 
     // invalid
     try doTest("he*llo world", "", getErrorCode(Error.ModifierNotClosed));
-    try doTest("# title :::", "", getErrorCode(Error.InvalidTitleContent));
 }

@@ -37,7 +37,5 @@ int main() {
 
     // invalid
     foo("hello *world");
-    foo("hello world :::");
-    foo("# hello :::");
     return 0;
 }

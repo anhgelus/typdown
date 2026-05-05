@@ -80,7 +80,7 @@ test "callout" {
     try doTestError(parse, alloc,
         \\:::
         \\hey:::
-    , Error.IllegalPlacement);
+    , Error.InvalidCallout);
     try doTestError(parse, alloc,
         \\:::
         \\hey

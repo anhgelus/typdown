@@ -61,5 +61,4 @@ test "parse paragraphs" {
     try doTestError(parse, alloc, "hello *wo_rld*", Error.ModifierNotClosed);
     try doTestError(parse, alloc, "*hell*o *wo_rld*", Error.ModifierNotClosed);
     try doTestError(parse, alloc, "hello wo$rld", Error.ModifierNotClosed);
-    try doTestError(parse, alloc, "hello ::: world", Error.IllegalPlacement);
 }

@@ -18,15 +18,19 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Paragraph.Block.init(alloc);
     var root = try Element.Root.init(alloc);
     el.content = root.element();
+    root.append(try parseLine(alloc, l));
     while (l.peek()) |next| switch (next.kind) {
         .strong_delimiter => return el.element(),
         .weak_delimiter => {
             l.consume();
+            l.isValid();
             const future = l.peek() orelse return el.element();
             if (!future.kind.isInParagraph()) return el.element();
             root.append(try Element.Literal.init(alloc, " "));
+            //l.isValid();
+            root.append(try parseLine(alloc, l));
         },
-        else => root.append(try parseLine(alloc, l)),
+        else => unreachable,
     };
     return el.element();
 }

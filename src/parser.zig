@@ -65,7 +65,6 @@ fn gen(parent: Allocator, l: *Lexer) Allocator.Error!Document {
     var doc_errors = std.ArrayList(Document.Error).empty;
     errdefer doc_errors.deinit(parent);
     base: while (l.peek()) |it| {
-        const beg = l.iter.i;
         const v = switch (it.kind) {
             // other blocks
             .title => title.parse(alloc, l),
@@ -79,6 +78,7 @@ fn gen(parent: Allocator, l: *Lexer) Allocator.Error!Document {
                 l.consume();
                 continue :base;
             },
+            .callout => callout.parse(alloc, l),
             else =>
             // block paragraph
             if (it.kind.isInParagraph())
@@ -87,11 +87,11 @@ fn gen(parent: Allocator, l: *Lexer) Allocator.Error!Document {
                 Error.FeatureNotSupported,
         } catch |err| {
             if (err == Error.OutOfMemory) return Error.OutOfMemory;
-            var end = l.iter.i;
-            if (beg == end) end += 1;
+            const beg = l.context.last_valid;
+            const end = l.iter.i;
             try doc_errors.append(parent, .{
                 .err = err,
-                .location = .{ .beg = beg, .end = end, .line = l.current_line },
+                .location = .{ .beg = beg, .end = end, .line = l.context.current_line },
             });
             _ = l.next();
             // consume until next delimiter
@@ -107,7 +107,7 @@ fn doTest(alloc: Allocator, t: []const u8, v: []const u8) !void {
     const g = try parse(alloc, t);
     defer g.deinit(alloc);
     if (g.errors) |errors| {
-        for (errors) |it| std.debug.print("{}: {s}\n", .{ it.err, it.extract(t) });
+        for (errors) |it| std.debug.print("{} (line {}): {s}\n", .{ it.err, it.location.line, it.extract(t) });
         try std.testing.expect(false);
     }
     const res = try g.root.renderHTML(alloc);

@@ -15,6 +15,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     if (!beg.kind.isDelimiter()) return Error.InvalidMathBlock;
     const math = try Element.Math.Block.init(alloc);
     var acc = try std.ArrayList(u8).initCapacity(alloc, 2);
+    l.isValid();
     while (l.next()) |it| {
         if (it.kind == .math_block) return Error.InvalidMathBlock;
         try acc.appendSlice(alloc, it.content);
@@ -26,6 +27,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
             if (next.kind == .math_block) break;
         }
     }
+    l.isValid();
     var end = l.next() orelse return Error.InvalidMathBlock;
     if (end.kind != .math_block) return Error.InvalidMathBlock;
     const el = try Element.Figure.init(alloc, math.element());

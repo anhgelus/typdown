@@ -18,6 +18,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     if (v.kind != .link) return Error.InvalidLink;
     if (!eql(u8, v.content, "[")) return (try Element.Literal.init(alloc, v.content)).element();
     var el = try Element.Root.init(alloc);
+    l.isValid();
     while (l.peek()) |next| switch (next.kind) {
         .weak_delimiter, .strong_delimiter => return Error.InvalidLink,
         .link => {
@@ -27,8 +28,10 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         },
         else => el.append(try content.parse(el.allocator(), l)),
     };
+    l.isValid();
     const href = l.next() orelse return Error.InvalidLink;
     if (href.kind != .literal) return Error.InvalidLink;
+    l.isValid();
     const finisher = l.next() orelse return Error.InvalidLink;
     if (!finisher.equals(.link, ")")) return Error.InvalidLink;
     const in: Element = if (el.content.first != null)
@@ -52,16 +55,19 @@ pub fn parseImage(alloc: Allocator, l: *Lexer) ImageError!Element {
         .link => if (!eql(u8, it.content, "](")) return ImageError.InvalidImage,
         .literal => {
             alt = it.content;
+            l.isValid();
             const next = l.next() orelse return ImageError.InvalidImage;
             if (!next.equals(.link, "](")) return ImageError.InvalidImage;
         },
         else => return ImageError.InvalidImage,
     }
+    l.isValid();
     it = l.next() orelse return ImageError.InvalidImage;
     if (it.kind != .literal) return ImageError.InvalidImage;
     const src = it.content;
     it = l.next() orelse return ImageError.InvalidImage;
     if (!it.equals(.link, ")")) return ImageError.InvalidImage;
+    l.isValid();
     const img = try Element.Image.init(alloc, src);
     img.alt = alt;
     const el = try Element.Figure.init(alloc, img.element());
@@ -71,6 +77,7 @@ pub fn parseImage(alloc: Allocator, l: *Lexer) ImageError!Element {
         .weak_delimiter => l.consume(),
         else => return ImageError.InvalidImage,
     }
+    l.isValid();
     const p = (try paragraph.parse(alloc, l)).as(Element.paragraph.Block);
     el.caption = (try p.toRoot(alloc)).element();
     return el.element();

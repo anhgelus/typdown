@@ -37,6 +37,7 @@ fn parse(alloc: Allocator, content: *std.ArrayList(Element), l: *Lexer, comptime
         else => {
             const p = (try paragraph.parse(alloc, l)).as(Element.paragraph.Block);
             try content.append(alloc, p.content.?);
+            l.isValid();
         },
     };
 }

@@ -26,6 +26,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         },
         else => if (!beg.kind.isDelimiter()) return Error.InvalidCallout,
     }
+    l.isValid();
     var root = try Element.Root.init(alloc);
     while (l.peek()) |it| {
         if (it.kind == .callout) {
@@ -42,6 +43,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         root.append(try paragraph.parse(root.allocator(), l));
         _ = l.peek() orelse return Error.InvalidCallout;
     }
+    l.isValid();
     var el = try Element.Callout.init(alloc, root.element());
     el.kind = kind;
     el.title = title;

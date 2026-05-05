@@ -12,6 +12,7 @@ pub const Error = paragraph.Error || Allocator.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     const root = try Element.Root.init(alloc);
+    l.isValid();
     while (l.peek()) |next| switch (next.kind) {
         .quote => {
             l.consume();
@@ -26,6 +27,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         .strong_delimiter => break,
         else => root.append(try paragraph.parseLine(alloc, l)),
     };
+    l.isValid();
     const quote = try Element.Quote.init(alloc, root.element());
     const el = try Element.Figure.init(alloc, quote.element());
     const v = l.peek() orelse return el.element();
@@ -33,6 +35,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         l.consume();
         return el.element();
     }
+    l.isValid();
     const p = (try paragraph.parse(alloc, l)).as(Element.paragraph.Block);
     el.caption = (try p.toRoot(alloc)).element();
     return el.element();

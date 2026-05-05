@@ -51,7 +51,7 @@ fn html(parent: Allocator, args: *std.process.ArgIterator) !void {
             var stdout = std.fs.File.stdout().writer(&buffer).interface;
             try stdout.print("Errors:\n\n", .{});
             for (errors) |err| {
-                try stdout.print("{}: {s}\n\n", .{err.err, err.extract(content)});
+                try stdout.print("{} (line {}): {s}\n\n", .{err.err, err.location.line, err.extract(content)});
                 try stdout.flush();
             }
             std.process.exit(2);

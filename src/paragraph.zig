@@ -27,7 +27,6 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
             const future = l.peek() orelse return el.element();
             if (!future.kind.isInParagraph()) return el.element();
             root.append(try Element.Literal.init(alloc, " "));
-            //l.isValid();
             root.append(try parseLine(alloc, l));
         },
         else => unreachable,

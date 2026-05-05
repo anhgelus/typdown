@@ -100,6 +100,9 @@ fn requiresDelimiter(self: *Self, before: ?Token.Kind, knd: Token.Kind) Token.Ki
     return if (self.context.new_block or (before != null and before.? == knd)) knd else .literal;
 }
 
+const links = &[_][]const u8{ "[", "](", ")" };
+const refs = &[_][]const u8{ "<", ">:" };
+
 fn getCurrentKind(self: *Self, before: ?Token.Kind, rune: []const u8, acc: []const u8) kindRes {
     if (self.force_lit) return .{ .kind = .literal };
     if (eql(u8, rune, "\n")) return .{
@@ -112,10 +115,10 @@ fn getCurrentKind(self: *Self, before: ?Token.Kind, rune: []const u8, acc: []con
     if (eql(u8, rune, ".")) return .{ .kind = self.requiresDelimiter(before, .list_ordored) };
     if (eql(u8, rune, "-")) return .{ .kind = self.requiresDelimiter(before, .list_unordored) };
     if (eql(u8, rune, "!")) return .{ .kind = self.requiresDelimiter(before, .image) };
-    if (eql(u8, rune, "<")) return .{ .kind = .ref };
     if (is('#', 6, rune, acc)) return .{ .kind = self.requiresDelimiter(before, .title) };
     if (isIn(links, rune, acc, before, .link)) return .{ .kind = .link };
-    if (isOneOrThree(":", rune, acc, .ref, .callout)) |it| return it;
+    if (isIn(refs, rune, acc, before, .ref)) return .{ .kind = .ref };
+    if (isOneOrThree(":", rune, acc, .literal, .callout)) |it| return it;
     if (isOneOrThree("$", rune, acc, .math, .math_block)) |it| return it;
     if (isOneOrThree("`", rune, acc, .code, .code_block)) |it| return it;
     return .{ .kind = .literal };
@@ -126,8 +129,6 @@ fn is(v: u8, maxLen: usize, rune: []const u8, acc: []const u8) bool {
     for (acc) |it| if (it != v) return true;
     return acc.len < maxLen;
 }
-
-const links = &[_][]const u8{ "[", "](", ")" };
 
 fn isIn(ops: []const []const u8, rune: []const u8, p: []const u8, before: ?Token.Kind, now: Token.Kind) bool {
     var acc = p;

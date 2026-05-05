@@ -15,7 +15,7 @@ math-block = "$$$", { delimiter, content }, weak-delimiter, "$$$";
 image = "![", [ content ], "](", content, ")", { weak-delimiter, content };
 list-unordored = "- ", paragraph, { weak-delimiter, "- ", paragraph };
 list-ordored = ". ", paragraph, { weak-delimiter, ". ", paragraph };
-footnotes = "<", content, ":", paragraph, { weak-delimiter, "<", content, ":", paragraph };
+footnotes = "<", content, ">:", paragraph, { weak-delimiter, "<", content, ">:", paragraph };
 tag = "#", content;
 
 (* content of a block *)

@@ -34,7 +34,11 @@ fn parse(alloc: Allocator, content: *std.ArrayList(Element), l: *Lexer, comptime
             continue;
         },
         .strong_delimiter => return,
-        else => try content.append(alloc, try paragraph.parseLine(alloc, l)),
+        else => {
+            const p = try paragraph.parse(alloc, l);
+            const p_el: *Element.paragraph.Block = @ptrCast(@alignCast(p.ptr));
+            try content.append(alloc, p_el.content.?);
+        },
     };
 }
 
@@ -48,8 +52,11 @@ test "parse ordored list" {
     try doTest(parseOrdored, alloc,
         \\. one
         \\. two
+        \\multi line
+        \\. three
+        \\
         \\no more
-    , "<ol><li>one</li><li>two</li></ol>");
+    , "<ol><li>one</li><li>two multi line</li><li>three</li></ol>");
 
     try doTestError(parseOrdored, alloc, ".one :::", Error.IllegalPlacement);
 }
@@ -64,6 +71,7 @@ test "parse unordored list" {
     try doTest(parseUnordored, alloc,
         \\- one
         \\- two
+        \\
         \\no more
     , "<ul><li>one</li><li>two</li></ul>");
 

@@ -33,21 +33,16 @@ pub fn next(self: *Self) ?Token {
         if (eql(u8, rune, "\r")) continue;
         if (eql(u8, rune, "\n")) self.context.newLine();
         var override_if: ?[]const u8 = null;
-        // escape chars
-        if (eql(u8, rune, "\\")) {
-            self.force_lit = true;
-            current_kind = .literal;
-        } else {
-            self.force_lit = false;
-            const res = self.getCurrentKind(current_kind, rune, self.content[beg..end]);
-            current_kind = res.kind;
-            override_if = res.override_if;
-            end = self.iter.i;
-        }
+        const res = self.getCurrentKind(current_kind, rune, self.content[beg..end]);
+        current_kind = res.kind;
+        if (current_kind != .escaped) self.force_lit = false;
+        override_if = res.override_if;
+        end = self.iter.i;
         self.context.new_block = current_kind.?.isDelimiter();
         // conds here to avoid creating complex condition in while
         var next_rune = self.iter.peek(1);
         const next_kind = self.getCurrentKind(current_kind, next_rune, self.content[beg..end]).kind;
+        if (next_kind == .escaped) self.force_lit = false;
         if (current_kind.?.requiresSpace() and next_kind != current_kind.?) {
             if (eql(u8, next_rune, " ")) {
                 // consume next space
@@ -104,11 +99,17 @@ const links = &[_][]const u8{ "[", "](", ")" };
 const refs = &[_][]const u8{ "<", ">:" };
 
 fn getCurrentKind(self: *Self, before: ?Token.Kind, rune: []const u8, acc: []const u8) kindRes {
-    if (self.force_lit) return .{ .kind = .literal };
+    if (self.force_lit) {
+        return .{ .kind = .literal };
+    }
     if (eql(u8, rune, "\n")) return .{
         .kind = if (before == .weak_delimiter) .strong_delimiter else .weak_delimiter,
         .override_if = rune,
     };
+    if (eql(u8, rune, "\\")) {
+        self.force_lit = true;
+        return .{ .kind = .escaped };
+    }
     if (eql(u8, rune, "*")) return .{ .kind = .bold };
     if (eql(u8, rune, "_")) return .{ .kind = .italic };
     if (eql(u8, rune, ">")) return .{ .kind = self.requiresDelimiter(before, .quote) };
@@ -118,7 +119,7 @@ fn getCurrentKind(self: *Self, before: ?Token.Kind, rune: []const u8, acc: []con
     if (is('#', 6, rune, acc)) return .{ .kind = self.requiresDelimiter(before, .title) };
     if (isIn(links, rune, acc, before, .link)) return .{ .kind = .link };
     if (isIn(refs, rune, acc, before, .ref)) return .{ .kind = .ref };
-    if (isOneOrThree(":", rune, acc, .literal, .callout)) |it| return it;
+    if (isOneOrThree(":", rune, acc, .ref, .callout)) |it| return it;
     if (isOneOrThree("$", rune, acc, .math, .math_block)) |it| return it;
     if (isOneOrThree("`", rune, acc, .code, .code_block)) |it| return it;
     return .{ .kind = .literal };
@@ -300,9 +301,10 @@ test "peek and consume" {
     try expect(l.peek().?.equals(.bold, "*"));
     try expect(l.peek().?.equals(.bold, "*"));
     l.consume();
-    try expect(l.next().?.equals(.literal, "world"));
+    l.consume();
+    try doTest(&l, .literal, "world");
     try expect(l.peek().?.equals(.bold, "*"));
-    try expect(l.next().?.equals(.bold, "*"));
+    try doTest(&l, .bold, "*");
     try expect(l.next() == null);
 }
 
@@ -314,15 +316,42 @@ test "trim space" {
         \\>    world
     );
 
-    try expect(l.next().?.equals(.quote, ">"));
+    try doTest(&l, .quote, ">");
     try expect(l.context.current_line == 1);
-    try expect(l.next().?.equals(.literal, "hello"));
+    try doTest(&l, .literal, "hello");
     try expect(l.context.current_line == 1);
-    try expect(l.next().?.equals(.weak_delimiter, "\n"));
+    try doTest(&l, .weak_delimiter, "\n");
     try expect(l.context.current_line == 2);
-    try expect(l.next().?.equals(.quote, ">"));
+    try doTest(&l, .quote, ">");
     try expect(l.context.current_line == 2);
-    try expect(l.next().?.equals(.literal, "world"));
+    try doTest(&l, .literal, "world");
     try expect(l.context.current_line == 2);
+    try expect(l.next() == null);
+}
+
+test "escape" {
+    const expect = std.testing.expect;
+
+    var l = try init("\\*");
+
+    try doTest(&l, .escaped, "\\");
+    try doTest(&l, .literal, "*");
+    try expect(l.next() == null);
+
+    l = try init("uwu \\*");
+
+    try doTest(&l, .literal, "uwu ");
+    try doTest(&l, .escaped, "\\");
+    try doTest(&l, .literal, "*");
+    try expect(l.next() == null);
+
+    l = try init("uwu \\**i'm a furry*");
+
+    try doTest(&l, .literal, "uwu ");
+    try doTest(&l, .escaped, "\\");
+    try doTest(&l, .literal, "*");
+    try doTest(&l, .bold, "*");
+    try doTest(&l, .literal, "i'm a furry");
+    try doTest(&l, .bold, "*");
     try expect(l.next() == null);
 }

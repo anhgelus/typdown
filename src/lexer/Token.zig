@@ -20,6 +20,7 @@ pub const Kind = enum {
     list_ordored,
     list_unordored,
     tag,
+    escaped,
 
     pub inline fn isDelimiter(self: @This()) bool {
         return switch (self) {

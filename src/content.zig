@@ -40,6 +40,7 @@ fn parseModifier(alloc: Allocator, l: *Lexer, knd: Token.Kind, comptime tag: []c
         if (next.kind == knd) {
             // consuming the finisher
             l.consume();
+            l.isValid();
             return el.element();
         }
         if (next.kind.isDelimiter()) return Error.ModifierNotClosed;

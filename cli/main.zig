@@ -47,11 +47,19 @@ fn html(parent: Allocator, args: *std.process.ArgIterator) !void {
 
         var doc = try typdown.parse(alloc, content);
         if (doc.errors) |errors| {
-            var buffer: [1024]u8 = undefined;
-            var stdout = std.fs.File.stdout().writer(&buffer).interface;
-            try stdout.print("Errors:\n\n", .{});
+            var buffer: [2048]u8 = undefined;
+            var stdout_writer = std.fs.File.stdout().writer(&buffer);
+            const stdout = &stdout_writer.interface;
+            try stdout.print("Cannot compile {s}:\n", .{path});
             for (errors) |err| {
-                try stdout.print("{} (line {}): {s}\n\n", .{ err.err, err.location.line, err.extract(content) });
+                const extracted = std.mem.trimEnd(u8, err.extract(content), "\n");
+                try stdout.print("\n{s} (line {})\n", .{ extracted, err.location.line });
+                try stdout.printAsciiChar('^', .{});
+                if (extracted.len > 1) {
+                    for (1..extracted.len - 1) |_| try stdout.printAsciiChar('~', .{});
+                    try stdout.printAsciiChar('^', .{});
+                }
+                try stdout.print("\n{}\n\n", .{err.err});
                 try stdout.flush();
             }
             std.process.exit(2);

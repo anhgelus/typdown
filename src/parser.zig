@@ -93,7 +93,6 @@ fn gen(parent: Allocator, l: *Lexer) Allocator.Error!Document {
                 .err = err,
                 .location = .{ .beg = beg, .end = end, .line = l.context.current_line },
             });
-            _ = l.next();
             // consume until next delimiter
             while (l.next()) |next| if (next.kind.isDelimiter()) continue :base;
             break :base;

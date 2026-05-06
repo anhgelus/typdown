@@ -31,7 +31,7 @@ pub const Kind = enum {
 
     pub inline fn isInParagraph(self: @This()) bool {
         return switch (self) {
-            .literal, .link, .code, .math, .bold, .italic, .ref => true,
+            .literal, .link, .code, .math, .bold, .italic, .ref, .escaped => true,
             else => false,
         };
     }

@@ -31,7 +31,7 @@ Idcirco enim non desideraret, quia, quod dolore caret, id in voluptate ponatur, 
 amicitiae non modo non impediri rationem amicitiae, si summum bonum esse vult, summumque malum dolorem, idque instituit
 docere sic: Omne animal, simul atque natum sit, `voluptatem appetere` eaque gaudere ut.
 
-. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magnam
+. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt\* ut labore et dolore magnam
 aliquam [quaerat *voluptatem*](https://example.org/). 
 Ut enim aeque doleamus animo, cum corpore dolemus, fieri tamen permagna accessio potest, si aliquod aeternum et
 infinitum impendere malum nobis opinemur. 

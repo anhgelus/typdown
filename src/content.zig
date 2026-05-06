@@ -23,6 +23,10 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         .italic => content.append(try parseModifier(alloc, l, .italic, "em")),
         .code => content.append(try parseModifier(alloc, l, .code, "code")),
         .math => content.append(try parseMath(alloc, l)),
+        .escaped => {
+            _ = l.peek() orelse return Error.IllegalPlacement;
+            return try parse(alloc, l);
+        },
         else => return Error.IllegalPlacement,
     }
     return content.element();

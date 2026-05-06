@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const short = b.option(bool, "short", "skip long tests") orelse false;
-    const no_embed_fonts = b.option(bool, "no-embed-fonts", "dont embed fonts for typst") orelse false;
+    const no_embed_fonts = b.option(bool, "no-embed-fonts", "dont embed fonts for typst (enabled for ReleaseSmall)") orelse false;
     const options = b.addOptions();
     options.addOption(bool, "short", short);
 
@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
         "cargo", "build",
     });
     build_typst.setCwd(typst_dep.path(""));
-    if (!no_embed_fonts) build_typst.addArgs(&.{ "--features", "embed-fonts" });
+    if (!no_embed_fonts or optimize == .ReleaseSmall) build_typst.addArgs(&.{ "--features", "embed-fonts" });
     var folder: []const u8 = "debug";
     switch (optimize) {
         .ReleaseSmall => {

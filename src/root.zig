@@ -27,7 +27,7 @@ inline fn getErrorCode(err: Error) u8 {
 }
 
 /// Returns the static string linked with the error code.
-export fn typdown_getErrorString(code: u8) [*:0]const u8 {
+export fn getErrorString(code: u8) [*:0]const u8 {
     return switch (code) {
         1 => "out of memory",
         2 => "invalid UTF-8",
@@ -45,22 +45,22 @@ export fn typdown_getErrorString(code: u8) [*:0]const u8 {
 }
 
 /// typdown_Document is a Document for the C ABI.
-const typdown_Document = extern struct {
+const CDocument = extern struct {
     root: ?*anyopaque = null,
-    errors: ?[*]typdown_Error = null,
+    errors: ?[*]CDocument.Document_Error = null,
     errors_len: usize = 0,
 
-    const typdown_Error = extern struct {
+    const Document_Error = extern struct {
         code: u8,
         location: extern struct { beg: usize, end: usize, line: usize },
     };
 };
 
-fn from(alloc: Allocator, doc: Document) typdown_Document {
-    var res = typdown_Document{ .root = doc.root };
+fn from(alloc: Allocator, doc: Document) CDocument {
+    var res = CDocument{ .root = doc.root };
     if (doc.errors) |errors| {
         defer alloc.free(errors);
-        res.errors = (alloc.alloc(typdown_Document.typdown_Error, errors.len) catch |err| @panic(@errorName(err))).ptr;
+        res.errors = (alloc.alloc(CDocument.Document_Error, errors.len) catch |err| @panic(@errorName(err))).ptr;
         for (errors) |err| {
             res.errors.?[0] = .{
                 .code = getErrorCode(err.err),
@@ -72,8 +72,8 @@ fn from(alloc: Allocator, doc: Document) typdown_Document {
     return res;
 }
 
-fn fromError(alloc: Allocator, err: Error) typdown_Document {
-    var v = alloc.alloc(typdown_Document.typdown_Error, 1) catch |e| @panic(@errorName(e));
+fn fromError(alloc: Allocator, err: Error) CDocument {
+    var v = alloc.alloc(CDocument.Document_Error, 1) catch |e| @panic(@errorName(e));
     v[0] = .{ .code = getErrorCode(err), .location = .{ .beg = 0, .end = 0, .line = 0 } };
     return .{ .errors = v.ptr, .errors_len = 1 };
 }
@@ -89,7 +89,7 @@ var default_alloc: std.mem.Allocator =
 /// Parse the content.
 ///
 /// You must free the document with typdown_free.
-export fn typdown_parse(content: [*:0]const u8) typdown_Document {
+export fn parseTypdown(content: [*:0]const u8) CDocument {
     const alloc = default_alloc;
     return from(alloc, parse(alloc, std.mem.span(content)) catch |err| {
         return fromError(alloc, err);
@@ -97,7 +97,7 @@ export fn typdown_parse(content: [*:0]const u8) typdown_Document {
 }
 
 /// Free the document.
-export fn typdown_free(self: typdown_Document) void {
+export fn Document_free(self: CDocument) void {
     const alloc = default_alloc;
     if (self.root) |r| {
         const root: *Element.Root = @ptrCast(@alignCast(r));
@@ -107,7 +107,7 @@ export fn typdown_free(self: typdown_Document) void {
 }
 
 /// Render an HTML from the document.
-export fn typdown_renderHTML(context: *anyopaque, code: *u8) ?[*:0]const u8 {
+export fn Document_renderHTML(context: *anyopaque, code: *u8) ?[*:0]const u8 {
     const root: *Element.Root = @ptrCast(@alignCast(context));
     const res = root.renderHTML(default_alloc) catch |err| {
         code.* = getErrorCode(err);
@@ -128,14 +128,14 @@ test {
 fn doTest(content: [*:0]const u8, exp: []const u8, comptime exp_code: u8) !void {
     const expect = std.testing.expect;
 
-    const doc = typdown_parse(content);
-    defer typdown_free(doc);
+    const doc = parseTypdown(content);
+    defer Document_free(doc);
     if (doc.errors) |errors| {
         for (0..doc.errors_len) |i| if (errors[i].code == exp_code) return;
         return try expect(false);
     }
     var code: u8 = undefined;
-    const raw = typdown_renderHTML(doc.root.?, &code) orelse {
+    const raw = Document_renderHTML(doc.root.?, &code) orelse {
         expect(code == exp_code) catch |err| {
             std.debug.print("{}\n", .{code});
             return err;

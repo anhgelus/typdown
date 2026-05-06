@@ -17,16 +17,16 @@ fn typstInterop(alloc: Allocator, comptime f: fn ([*c]const u8) callconv(.c) [*c
     defer alloc.free(source);
     const raw_res = f(source);
     const res = try alloc.dupe(u8, std.mem.span(raw_res));
-    defer typst.typst_freeString(raw_res);
+    defer typst.freeString(raw_res);
     return res;
 }
 
 fn generateSVG(alloc: Allocator, content: []const u8) ![]const u8 {
-    return try typstInterop(alloc, typst.typst_generateSVG, content);
+    return try typstInterop(alloc, typst.generateSVG, content);
 }
 
 fn escape(alloc: Allocator, content: []const u8) ![]const u8 {
-    return try typstInterop(alloc, typst.typst_escapeMath, content);
+    return try typstInterop(alloc, typst.escapeMath, content);
 }
 
 fn generateFile(alloc: Allocator, template: []const u8, content: []const u8) Error![]const u8 {

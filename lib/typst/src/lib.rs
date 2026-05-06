@@ -35,18 +35,18 @@ unsafe fn convert_call(source: *const c_char, f: fn(&str) -> String) -> *const c
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn typst_generateSVG(source: *const c_char) -> *const c_char {
+pub unsafe extern "C" fn generateSVG(source: *const c_char) -> *const c_char {
     unsafe { convert_call(source, compile) }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn typst_freeString(res: *mut c_char) {
+pub unsafe extern "C" fn freeString(res: *mut c_char) {
     unsafe {
         drop(CString::from_raw(res));
     }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn typst_escapeMath(source: *const c_char) -> *const c_char {
+pub unsafe extern "C" fn escapeMath(source: *const c_char) -> *const c_char {
     unsafe { convert_call(source, escape_math) }
 }

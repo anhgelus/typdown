@@ -4,8 +4,6 @@ package typdown
 #cgo LDFLAGS: -L${SRCDIR}/zig-out/lib -ltypdown
 #include <stdlib.h>
 #include "typdown.h"
-
-typedef struct typdown_Document Document;
 */
 import "C"
 import (
@@ -73,7 +71,7 @@ type Document struct {
 func Parse(content string) Document {
 	conv := C.CString(content)
 	defer C.free(unsafe.Pointer(conv))
-	rawDoc := C.typdown_parse(conv)
+	rawDoc := C.parseTypdown(conv)
 	doc := Document{embed: rawDoc}
 	if rawDoc.errors_len > 0 {
 		doc.Errors = make([]Error, rawDoc.errors_len)
@@ -91,12 +89,12 @@ func Parse(content string) Document {
 }
 
 func (d *Document) Close() {
-	C.typdown_free(d.embed)
+	C.Document_free(d.embed)
 }
 
 func (d *Document) RenderHTML() (template.HTML, error) {
 	code := C.uchar(0)
-	raw := C.typdown_renderHTML(d.embed.root, &code)
+	raw := C.Document_renderHTML(d.embed.root, &code)
 	defer C.free(unsafe.Pointer(raw))
 	if code > 0 {
 		err := codeErrors[uint8(code)]

@@ -2,19 +2,21 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-struct typdown_Error {
+struct Document_Error {
     uint8_t code;
     struct {size_t beg; size_t end; size_t line;} location;
 };
 
-struct typdown_Document {
+struct CDocument {
     void *root;
-    struct typdown_Error *errors;
+    struct Document_Error *errors;
     size_t errors_len;
 };
 
-char * typdown_getErrorString(uint8_t);
+typedef struct CDocument Document;
 
-struct typdown_Document typdown_parse(char *);
-void typdown_free(struct typdown_Document);
-char * typdown_renderHTML(void *, uint8_t *);
+char * getErrorString(uint8_t);
+
+Document parseTypdown(char *);
+void Document_free(Document);
+char * Document_renderHTML(void *, uint8_t *);

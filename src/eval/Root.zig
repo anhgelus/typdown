@@ -32,13 +32,17 @@ pub fn allocator(self: *Self) Allocator {
 }
 
 pub fn append(self: *Self, raw: anytype) void {
-    const el: Element = blk: {
-        const T = @TypeOf(raw);
+    const el: ?Element = blk: {
+        const T = switch (@typeInfo(@TypeOf(raw))) {
+            .optional => |opt| opt.child,
+            else => @TypeOf(raw),
+        };
         if (T == Element) break :blk raw;
         if (std.meta.hasMethod(T, "element")) break :blk raw.element();
         @compileError("cannot convert " ++ @typeName(T) ++ " into " ++ @typeName(Element));
     };
-    self.content.append(&el.node().node);
+    if (el == null) return;
+    self.content.append(&el.?.node().node);
 }
 
 pub fn element(self: *Self) Element {

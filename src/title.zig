@@ -11,10 +11,11 @@ pub const Error = error{InvalidTitleContent} || paragraph.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     const v = l.next().?;
-    const el = try Element.Title.init(alloc, @intCast(v.content.len), paragraph.parseLine(alloc, l) catch |err| switch (err) {
+    const par = paragraph.parseLine(alloc, l) catch |err| switch (err) {
         paragraph.Error.IllegalPlacement => return Error.InvalidTitleContent,
         else => return err,
-    });
+    } orelse return Error.InvalidTitleContent;
+    const el = try Element.Title.init(alloc, @intCast(v.content.len), par);
     l.isValid();
     var next = l.next() orelse return el.element();
     if (!next.kind.isDelimiter()) return Error.InvalidTitleContent;

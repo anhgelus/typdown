@@ -18,7 +18,7 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     var el = try Paragraph.Block.init(alloc);
     var root = try Element.Root.init(alloc);
     el.content = root.element();
-    root.append(try parseLine(alloc, l));
+    root.append(try parseLine(root.allocator(), l));
     while (l.peek()) |next| switch (next.kind) {
         .strong_delimiter => return el.element(),
         .weak_delimiter => {
@@ -26,21 +26,30 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
             l.isValid();
             const future = l.peek() orelse return el.element();
             if (!future.kind.isInParagraph()) return el.element();
-            root.append(try Element.Literal.init(alloc, " "));
-            root.append(try parseLine(alloc, l));
+            root.append(try Element.Literal.init(root.allocator(), " "));
+            root.append(try parseLine(root.allocator(), l));
         },
         else => unreachable,
     };
+    if (root.content.first == null) {
+        el.content = null;
+        root.deinit();
+    }
     return el.element();
 }
 
-pub fn parseLine(alloc: Allocator, l: *Lexer) Error!Element {
+pub fn parseLine(alloc: Allocator, l: *Lexer) Error!?Element {
     var line = try Element.Root.init(alloc);
+    defer if (line.content.first == null) line.deinit();
     while (l.peek()) |next| switch (next.kind) {
-        .weak_delimiter, .strong_delimiter => return line.element(),
-        .link => line.append(try link.parse(alloc, l)),
-        else => line.append(try content.parse(alloc, l)),
+        .weak_delimiter, .strong_delimiter => {
+            if (line.content.first == null) return null;
+            return line.element();
+        },
+        .link => line.append(try link.parse(line.allocator(), l)),
+        else => line.append(try content.parse(line.allocator(), l)),
     };
+    if (line.content.first == null) return null;
     return line.element();
 }
 

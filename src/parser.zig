@@ -7,10 +7,9 @@ const paragraph = @import("paragraph.zig");
 const title = @import("title.zig");
 const link = @import("link.zig");
 const list = @import("list.zig");
-const code = @import("code.zig");
+const figure = @import("figure.zig");
 const callout = @import("callout.zig");
 const quote = @import("quote.zig");
-const math = @import("math.zig");
 
 pub const Error = error{FeatureNotSupported} ||
     Lexer.Error ||
@@ -18,11 +17,11 @@ pub const Error = error{FeatureNotSupported} ||
     title.Error ||
     link.Error ||
     list.Error ||
-    link.ImageError ||
-    code.Error ||
+    figure.Image.Error ||
+    figure.Code.Error ||
     callout.Error ||
     quote.Error ||
-    math.Error ||
+    figure.Math.Error ||
     Allocator.Error;
 
 const Self = @This();
@@ -70,10 +69,10 @@ fn gen(parent: Allocator, l: *Lexer) Allocator.Error!Document {
             .title => title.parse(alloc, l),
             .list_ordored => list.parseOrdored(alloc, l),
             .list_unordored => list.parseUnordored(alloc, l),
-            .image => link.parseImage(alloc, l),
-            .code_block => code.parse(alloc, l),
+            .image => figure.Image.parse(alloc, l),
+            .code_block => figure.Code.parse(alloc, l),
             .quote => quote.parse(alloc, l),
-            .math_block => math.parse(alloc, l),
+            .math_block => figure.Math.parse(alloc, l),
             .weak_delimiter, .strong_delimiter => {
                 l.consume();
                 continue :base;

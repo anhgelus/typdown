@@ -8,7 +8,7 @@ const Error = Element.Error;
 
 alloc: Allocator,
 tag: []const u8,
-attributes: std.StringArrayHashMap([]const u8),
+attributes: std.array_hash_map.String([]const u8),
 class_list: std.BufSet,
 node: Node = .{
     .ptr = undefined,
@@ -22,7 +22,7 @@ pub fn init(alloc: Allocator, tag: []const u8) Error!*Self {
     v.* = .{
         .alloc = alloc,
         .tag = tag,
-        .attributes = .init(alloc),
+        .attributes = .empty,
         .class_list = .init(alloc),
     };
     v.node.ptr = v;
@@ -34,7 +34,7 @@ pub fn element(self: *Self) Element {
 }
 
 pub fn setAttribute(self: *Self, k: []const u8, v: []const u8) Error!void {
-    try self.attributes.put(try self.alloc.dupe(u8, k), try html.escape(self.alloc, v));
+    try self.attributes.put(self.alloc, try self.alloc.dupe(u8, k), try html.escape(self.alloc, v));
 }
 
 pub fn removeAttribute(self: *Self, k: []const u8) void {
@@ -74,13 +74,13 @@ fn render(self: *Self, alloc: Allocator) Error![]const u8 {
     return acc.toOwnedSlice(alloc);
 }
 
-fn renderAttribute(alloc: Allocator, attributes: *std.StringArrayHashMap([]const u8), class_list: *std.BufSet) Error!?[]const u8 {
+fn renderAttribute(alloc: Allocator, attributes: *std.array_hash_map.String([]const u8), class_list: *std.BufSet) Error!?[]const u8 {
     const class = try renderClass(alloc, class_list);
     defer if (class) |it| {
         _ = attributes.orderedRemove("class");
         alloc.free(it);
     };
-    if (class) |it| try attributes.put("class", it);
+    if (class) |it| try attributes.put(alloc, "class", it);
     var iter = attributes.iterator();
     if (iter.len == 0) return null;
     var acc = try List(u8).initCapacity(alloc, iter.len);

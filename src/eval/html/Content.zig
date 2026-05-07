@@ -19,7 +19,7 @@ pub fn init(alloc: Allocator, tag: []const u8) Error!*Self {
         .base = .{
             .alloc = alloc,
             .tag = tag,
-            .attributes = .init(alloc),
+            .attributes = .empty,
             .class_list = .init(alloc),
         },
     };

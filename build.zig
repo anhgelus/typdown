@@ -53,7 +53,7 @@ pub fn build(b: *std.Build) void {
         .name = "typdown",
         .linkage = .dynamic,
         .root_module = mod,
-        .use_llvm = true, // zig internal backend crashes during linking (for 0.15.2)
+        .use_llvm = true, // zig internal backend crashes during linking (for 0.16.0)
     });
     lib.step.dependOn(&build_typst.step);
 
@@ -75,7 +75,7 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
         }),
-        .use_llvm = true,
+        .use_llvm = true, // zig internal backend crashes during linking (for 0.16.0)
     });
     exe.root_module.addImport("typdown", mod);
     exe.step.dependOn(&lib.step);
@@ -85,7 +85,7 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run tests");
     const exe_tests = b.addTest(.{
         .root_module = mod,
-        .use_llvm = true, // zig internal backend crashes during linking (for 0.15.2)
+        .use_llvm = true, // zig internal backend crashes during linking (for 0.16.0)
     });
 
     generateSVG(b, &exe_tests.step) catch |err| exe_tests.step.addError("{}\n", .{err}) catch unreachable;
@@ -115,6 +115,7 @@ pub fn build(b: *std.Build) void {
 
     const check = b.step("check", "Check if foo compiles");
     check.dependOn(&lib.step);
+    check.dependOn(&exe.step);
 
     const exe_run = b.step("run", "Run the CLI");
     const run_cmd = b.addRunArtifact(exe);
@@ -123,10 +124,13 @@ pub fn build(b: *std.Build) void {
 }
 
 fn generateSVG(b: *std.Build, step: *std.Build.Step) !void {
-    var dir = try b.build_root.handle.openDir("src/data", .{ .iterate = true });
-    defer dir.close();
+    var thread = std.Io.Threaded.init(b.allocator, .{});
+    defer thread.deinit();
+    const io = thread.io();
+    var dir = try b.build_root.handle.openDir(io, "src/data", .{ .iterate = true });
+    defer dir.close(io);
     var iter = dir.iterate();
-    while (try iter.next()) |it| {
+    while (try iter.next(io)) |it| {
         if (it.kind == .file and std.mem.endsWith(u8, it.name, ".typ") and !std.mem.startsWith(u8, it.name, "_")) {
             const cmd = b.addSystemCommand(&[_][]const u8{
                 "typst", "c",

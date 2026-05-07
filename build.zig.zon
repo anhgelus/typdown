@@ -2,7 +2,7 @@
     .name = .typdown,
     .version = "0.0.0",
     .fingerprint = 0x6d0fd8a73f35fe5b, // Changing this has security and trust implications.
-    .minimum_zig_version = "0.15.2",
+    .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .typst = .{
             .path = "lib/typst",

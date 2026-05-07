@@ -70,7 +70,7 @@ fn Math(comptime template: []const u8, comptime modFn: *const fn (Allocator, []c
             const escaped = try escape(arena.allocator(), content);
             const file = generateFile(arena.allocator(), template, try modFn(arena.allocator(), escaped)) catch |err| switch (err) {
                 Error.InvalidTypstTemplate => @panic("invalid template"),
-                Error.OutOfMemory => return Error.OutOfMemory,
+                Error.OutOfMemory => return error.OutOfMemory,
             };
             const svg = try generateSVG(arena.allocator(), file);
             return (try HTML.Literal.initNoEscape(alloc, svg)).element();

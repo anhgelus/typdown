@@ -122,7 +122,7 @@ export fn Document_renderHTML(context: *anyopaque, code: *u8) ?[*:0]const u8 {
 }
 
 test {
-    std.testing.refAllDeclsRecursive(@This());
+    std.testing.refAllDecls(@This());
 }
 
 fn doTest(content: [*:0]const u8, exp: []const u8, comptime exp_code: u8) !void {

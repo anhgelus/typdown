@@ -85,7 +85,7 @@ fn gen(parent: Allocator, l: *Lexer) Allocator.Error!Document {
             else
                 Error.FeatureNotSupported,
         } catch |err| {
-            if (err == Error.OutOfMemory) return Error.OutOfMemory;
+            if (err == Error.OutOfMemory) return error.OutOfMemory;
             const beg = l.context.last_valid;
             const end = l.iter.i;
             try doc_errors.append(parent, .{

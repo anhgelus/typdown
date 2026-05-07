@@ -4,10 +4,11 @@ const Token = @import("lexer/Token.zig");
 const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("eval/Element.zig");
 const testing = @import("testing.zig");
+const paragraph = @import("paragraph.zig");
 const doTest = testing.doMath;
 const doTestError = testing.doError;
 
-pub const Error = error{InvalidMathBlock} || Allocator.Error;
+pub const Error = error{InvalidMathBlock} || paragraph.Error || Allocator.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     _ = l.next();
@@ -28,12 +29,19 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
         }
     }
     l.isValid();
-    var end = l.next() orelse return Error.InvalidMathBlock;
+    const end = l.next() orelse return Error.InvalidMathBlock;
     if (end.kind != .math_block) return Error.InvalidMathBlock;
     const el = try Element.Figure.init(alloc, math.element());
     math.content = try acc.toOwnedSlice(alloc);
-    end = l.next() orelse return el.element();
-    if (!end.kind.isDelimiter()) return Error.InvalidMathBlock;
+    const next = l.peek() orelse return el.element();
+    switch (next.kind) {
+        .strong_delimiter => return el.element(),
+        .weak_delimiter => l.consume(),
+        else => return Error.InvalidMathBlock,
+    }
+    l.isValid();
+    const p = (try paragraph.parse(alloc, l)).as(Element.paragraph.Block);
+    el.caption = (try p.toRoot(alloc)).element();
     return el.element();
 }
 
@@ -54,5 +62,6 @@ test {
         \\$$$
         \\forall x in RR, quad f(x) = x^2
         \\$$$
-    , "<figure>" ++ @embedFile("data/block_3.svg") ++ "</figure>");
+        \\UwU, I am a caption :D
+    , "<figure>" ++ @embedFile("data/block_3.svg") ++ "<figcaption>UwU, I am a caption :D</figcaption></figure>");
 }

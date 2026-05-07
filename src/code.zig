@@ -5,10 +5,11 @@ const Token = @import("lexer/Token.zig");
 const Lexer = @import("lexer/Lexer.zig");
 const Element = @import("eval/Element.zig");
 const testing = @import("testing.zig");
+const paragraph = @import("paragraph.zig");
 const doTest = testing.do;
 const doTestError = testing.doError;
 
-pub const Error = error{InvalidCodeBlock} || Allocator.Error;
+pub const Error = error{InvalidCodeBlock} || paragraph.Error || Allocator.Error;
 
 pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     _ = l.next();
@@ -37,11 +38,18 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
             try code.content.append(alloc, (try Element.Literal.init(alloc, " ")).element());
     }
     l.isValid();
-    var end = l.next() orelse return Error.InvalidCodeBlock;
+    const end = l.next() orelse return Error.InvalidCodeBlock;
     if (end.kind != .code_block) return Error.InvalidCodeBlock;
     const el = try Element.Figure.init(alloc, code.element());
-    end = l.next() orelse return el.element();
-    if (!end.kind.isDelimiter()) return Error.InvalidCodeBlock;
+    const next = l.peek() orelse return el.element();
+    switch (next.kind) {
+        .strong_delimiter => return el.element(),
+        .weak_delimiter => l.consume(),
+        else => return Error.InvalidCodeBlock,
+    }
+    l.isValid();
+    const p = (try paragraph.parse(alloc, l)).as(Element.paragraph.Block);
+    el.caption = (try p.toRoot(alloc)).element();
     return el.element();
 }
 
@@ -57,7 +65,8 @@ test "code" {
         \\```td another
         \\hey
         \\```
-    , "<figure><pre data-code=\"td another\"><code>hey</code></pre></figure>");
+        \\Caption ;3
+    , "<figure><pre data-code=\"td another\"><code>hey</code></pre><figcaption>Caption ;3</figcaption></figure>");
     // cannot test content with \n
 
     try doTestError(parse, alloc, "```", Error.InvalidCodeBlock);

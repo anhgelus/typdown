@@ -37,20 +37,20 @@ fn buildGo(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builti
     var flags = std.ArrayList(u8).initCapacity(b.allocator, 2) catch unreachable;
     flags.appendSlice(b.allocator, "-linkmode external -extldflags -static") catch unreachable;
     if (optimize != .Debug) flags.appendSlice(b.allocator, " -s") catch unreachable;
-    //const targetStr = std.fmt.allocPrint(b.allocator, "{s}-{s}-{s}", .{
-    //    @tagName(target.result.cpu.arch),
-    //    @tagName(target.result.os.tag),
-    //    @tagName(target.result.abi),
-    //}) catch unreachable;
-    //const cc = std.fmt.allocPrint(b.allocator, "zig cc -target {s}", .{targetStr}) catch unreachable;
-    //const cpp = std.fmt.allocPrint(b.allocator, "zig c++ -target {s}", .{targetStr}) catch unreachable;
+    const targetStr = std.fmt.allocPrint(b.allocator, "{s}-{s}-{s}", .{
+        @tagName(target.result.cpu.arch),
+        @tagName(target.result.os.tag),
+        @tagName(target.result.abi),
+    }) catch unreachable;
+    const cc = std.fmt.allocPrint(b.allocator, "zig cc -target {s}", .{targetStr}) catch unreachable;
+    const cpp = std.fmt.allocPrint(b.allocator, "zig c++ -target {s}", .{targetStr}) catch unreachable;
     const run = b.addSystemCommand(&[_][]const u8{
         "go",       command,
         "-ldflags", flags.items,
         ".",
     });
-    run.setEnvironmentVariable("CC", "zig cc");
-    run.setEnvironmentVariable("C++", "zig c++");
+    run.setEnvironmentVariable("CC", cc);
+    run.setEnvironmentVariable("C++", cpp);
     run.setEnvironmentVariable("CGO_ENABLED", "1");
     run.setEnvironmentVariable("CGO_LDFLAGS", "-L${SRCDIR}/zig-out/lib -ltypdown");
     run.setEnvironmentVariable("GOOS", @tagName(target.result.os.tag));

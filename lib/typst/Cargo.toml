@@ -1,15 +1,17 @@
 [package]
 name = "typdown-typst"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-typst = "0.14.2"
-typst-kit = "0.14.2"
-typst-svg = "0.14.2"
+typst = "0.15.0"
+typst-assets = "0.15.0"
+typst-kit = "0.15.0"
+typst-layout = "0.15.0"
+typst-svg = "0.15.0"
 
 [profile.release]
 lto = "thin"
@@ -21,4 +23,5 @@ inherits = "release"
 opt-level = "s"
 
 [features]
-embed-fonts = ["typst-kit/embed-fonts"]
+default = ["embedded-fonts", "typst-kit/scan-fonts"]
+embedded-fonts = ["typst-kit/embedded-fonts"]

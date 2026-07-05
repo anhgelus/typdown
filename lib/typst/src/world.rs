@@ -6,39 +6,35 @@ use typst::Library;
 use typst::LibraryExt;
 use typst::World;
 use typst::diag::{FileError, FileResult};
+use typst::foundations::Duration;
 use typst::foundations::{Bytes, Datetime};
 use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
-use typst_kit::fonts::{FontSlot, Fonts};
+use typst_kit::fonts;
+use typst_kit::fonts::FontStore;
 
 /// Main interface that determines the environment for Typst.
 pub struct MinimalWorld {
     /// The content of a source.
     source: Source,
-
     /// The standard library.
     library: LazyHash<Library>,
-
     /// Metadata about all known fonts.
-    book: LazyHash<FontBook>,
-
-    /// Metadata about all known fonts.
-    fonts: Vec<FontSlot>,
+    fonts: FontStore,
 }
 
 impl MinimalWorld {
     pub fn new(source: impl Into<String>) -> Self {
-        let mut searcher = Fonts::searcher();
-        searcher.include_system_fonts(true);
-        #[cfg(feature = "embed-fonts")]
-        searcher.include_embedded_fonts(true);
-        let fonts = searcher.search();
+        let mut fonts = FontStore::new();
+
+        fonts.extend(fonts::system());
+
+        fonts.extend(fonts::embedded());
 
         Self {
             library: LazyHash::new(Library::default()),
-            book: LazyHash::new(fonts.book),
-            fonts: fonts.fonts,
+            fonts: fonts,
             source: Source::detached(source),
         }
     }
@@ -52,7 +48,7 @@ impl World for MinimalWorld {
 
     /// Metadata about all known Books.
     fn book(&self) -> &LazyHash<FontBook> {
-        &self.book
+        &self.fonts.book()
     }
 
     /// Accessing the main source file.
@@ -76,13 +72,13 @@ impl World for MinimalWorld {
 
     /// Accessing a specified font per index of font book.
     fn font(&self, id: usize) -> Option<Font> {
-        self.fonts.get(id)?.get()
+        self.fonts.font(id)
     }
 
     /// Get the current date.
     ///
     /// Optionally, an offset in hours is given.
-    fn today(&self, _offset: Option<i64>) -> Option<Datetime> {
+    fn today(&self, _offset: Option<Duration>) -> Option<Datetime> {
         None
     }
 }

@@ -2,25 +2,32 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-use typst::layout::PagedDocument;
-use typst_svg::svg_frame;
+use typst::diag::Warned;
 
 use crate::world::MinimalWorld;
+
+use typst_layout::PagedDocument;
 
 mod world;
 
 pub fn compile(content: &str) -> String {
     let world = MinimalWorld::new(content);
+    let Warned { output, warnings } = typst::compile::<PagedDocument>(&world);
 
-    let res = typst::compile::<PagedDocument>(&world);
-
-    if !res.warnings.is_empty() {
-        eprintln!("Warnings: {:?}", res.warnings);
+    if !warnings.is_empty() {
+        eprintln!("Warnings: {:?}", warnings);
     }
 
-    let doc = res.output.expect("Error compiling typst");
+    let doc = output.expect("Error compiling typst");
+    let page = doc.pages().first().expect("empty doc");
 
-    svg_frame(&doc.pages[0].frame)
+    typst_svg::svg(
+        page,
+        &typst_svg::SvgOptions {
+            render_bleed: false,
+            pretty: false,
+        },
+    )
 }
 
 pub fn escape_math(content: &str) -> String {

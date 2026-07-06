@@ -21,7 +21,7 @@ pub fn init(alloc: Allocator, level: u3, content: Element) !*Self {
 }
 
 pub fn element(self: *Self) Element {
-    return Element.Wrapper(Self, html).init(self);
+    return Element.Wrapper(Self, html, text).init(self);
 }
 
 fn fromNode(context: *anyopaque) Element {
@@ -41,4 +41,8 @@ fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
     });
     el.content = try self.content.html(alloc);
     return el.element();
+}
+
+fn text(self: *Self, alloc: Allocator) Allocator.Error![]u8 {
+    return try self.content.renderText(alloc);
 }

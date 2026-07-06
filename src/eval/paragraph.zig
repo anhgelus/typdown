@@ -23,16 +23,13 @@ pub const Link = struct {
 
     pub fn init(alloc: Allocator, content: Element, link: []const u8) !*Self {
         const v = try alloc.create(Self);
-        v.* = .{
-            .content = content,
-            .link = link,
-        };
+        v.* = .{ .content = content, .link = link };
         v.node.ptr = v;
         return v;
     }
 
     pub fn element(self: *Self) Element {
-        return Element.Wrapper(Self, html).init(self);
+        return Element.Wrapper(Self, html, text).init(self);
     }
 
     fn fromNode(context: *anyopaque) Element {
@@ -47,6 +44,21 @@ pub const Link = struct {
         if (self.target) |target| try el.base.setAttribute("target", target);
         return el.element();
     }
+
+    fn text(self: *Self, alloc: Allocator) Allocator.Error![]u8 {
+        var content = std.ArrayList(u8).empty;
+        const ct = try self.content.renderText(alloc);
+        defer alloc.free(ct);
+        if (ct.len < 0) {
+            defer content.deinit(alloc);
+            return try alloc.dupe(u8, self.link);
+        }
+        try content.appendSlice(alloc, ct);
+        try content.appendSlice(alloc, " (");
+        try content.appendSlice(alloc, self.link);
+        try content.append(alloc, ')');
+        return try content.toOwnedSlice(alloc);
+    }
 };
 
 fn doTest(alloc: Allocator, el: Element, exp: []const u8) !void {
@@ -58,7 +70,7 @@ fn doTest(alloc: Allocator, el: Element, exp: []const u8) !void {
     };
 }
 
-test "paragraph" {
+test "html" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const alloc = arena.allocator();
@@ -77,4 +89,34 @@ test "paragraph" {
 
     root.append(link);
     try doTest(alloc, p.element(), "<p>hello world<a href=\"example.org\">foo</a></p>");
+}
+
+fn doTestText(alloc: Allocator, el: Element, exp: []const u8) !void {
+    const got = try el.renderText(alloc);
+    defer alloc.free(got);
+    std.testing.expect(std.mem.eql(u8, got, exp)) catch |err| {
+        std.debug.print("{s}\n", .{got});
+        return err;
+    };
+}
+
+test "text" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const alloc = arena.allocator();
+
+    const lit = (try Element.Literal.init(alloc, "hello world")).element();
+    try doTestText(alloc, lit, "hello world");
+
+    var p = try Block.init(alloc);
+    var root = try Element.Root.init(alloc);
+    p.content = root.element();
+    root.append(lit);
+    try doTestText(alloc, p.element(), "hello world");
+
+    const link = (try Link.init(alloc, (try Element.Literal.init(alloc, "foo")).element(), "example.org")).element();
+    try doTestText(alloc, link, "foo (example.org)");
+
+    root.append(link);
+    try doTestText(alloc, p.element(), "hello worldfoo (example.org)");
 }

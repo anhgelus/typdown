@@ -13,7 +13,11 @@ pub const Callout = blocks.Callout;
 pub const Quote = blocks.Quote;
 pub const Math = @import("math.zig");
 
-pub fn Wrapper(comptime V: type, comptime h: *const fn (*V, Allocator) HTML.Error!HTML) type {
+pub fn Wrapper(
+    comptime V: type,
+    comptime h: *const fn (*V, Allocator) HTML.Error!HTML,
+    comptime t: *const fn (*V, Allocator) Allocator.Error![]u8,
+) type {
     comptime {
         if (!@hasField(V, "node")) @compileError("missing field 'node' for " ++ @typeName(V));
         const nd = @FieldType(V, "node");
@@ -35,12 +39,21 @@ pub fn Wrapper(comptime V: type, comptime h: *const fn (*V, Allocator) HTML.Erro
             return try h(self, alloc);
         }
 
+        fn text(context: *anyopaque, alloc: Allocator) ![]u8 {
+            const self: *V = @ptrCast(@alignCast(context));
+            return try t(self, alloc);
+        }
+
         pub fn init(ptr: *V) Element {
             return (Self{ .ptr = ptr }).element();
         }
 
         pub fn element(self: Self) Element {
-            return .{ .ptr = self.ptr, .vtable = .{ .node = Self.node, .html = Self.html } };
+            return .{ .ptr = self.ptr, .vtable = .{
+                .node = Self.node,
+                .text = Self.text,
+                .html = Self.html,
+            } };
         }
     };
 }
@@ -64,6 +77,7 @@ const Element = @This();
 
 vtable: struct {
     html: *const fn (*anyopaque, Allocator) HTML.Error!HTML,
+    text: *const fn (*anyopaque, Allocator) Allocator.Error![]u8,
     node: *const fn (*anyopaque) *Node,
 },
 ptr: *anyopaque,
@@ -73,6 +87,10 @@ pub fn renderHTML(self: Element, alloc: Allocator) HTML.Error![]const u8 {
     defer root.deinit();
     var el = try self.vtable.html(self.ptr, root.allocator());
     return el.render(alloc);
+}
+
+pub fn renderText(self: Element, alloc: Allocator) Allocator.Error![]u8 {
+    return self.vtable.text(self.ptr, alloc);
 }
 
 pub fn html(self: Element, alloc: Allocator) HTML.Error!HTML {
@@ -108,7 +126,7 @@ pub const Literal = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return Wrapper(Self, Self.html).init(self);
+        return Wrapper(Self, Self.html, text).init(self);
     }
 
     fn fromNode(context: *anyopaque) Element {
@@ -118,6 +136,10 @@ pub const Literal = struct {
 
     fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
         return (try HTML.Literal.init(alloc, self.content)).element();
+    }
+
+    fn text(self: *Self, alloc: Allocator) Allocator.Error![]u8 {
+        return try alloc.dupe(u8, self.content);
     }
 };
 
@@ -135,7 +157,7 @@ pub fn Simple(comptime tag: []const u8) type {
         }
 
         pub fn element(self: *Self) Element {
-            return Wrapper(Self, Self.html).init(self);
+            return Wrapper(Self, Self.html, text).init(self);
         }
 
         pub fn toTag(self: *Self, alloc: Allocator, comptime target: []const u8) !*Simple(target) {
@@ -161,6 +183,13 @@ pub fn Simple(comptime tag: []const u8) type {
             var el = try HTML.Content.init(alloc, tag);
             if (self.content) |it| el.content = try it.html(alloc);
             return el.element();
+        }
+
+        fn text(self: *Self, alloc: Allocator) Allocator.Error![]u8 {
+            if (self.content) |it| {
+                return try it.renderText(alloc);
+            }
+            return "";
         }
     };
 }

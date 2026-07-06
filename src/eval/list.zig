@@ -24,7 +24,7 @@ fn List(comptime tag: []const u8) type {
         }
 
         pub fn element(self: *Self) Element {
-            return Element.Wrapper(Self, html).init(self);
+            return Element.Wrapper(Self, html, text).init(self);
         }
 
         fn fromNode(context: *anyopaque) Element {
@@ -42,6 +42,16 @@ fn List(comptime tag: []const u8) type {
                 try root.append(li.element());
             }
             return el.element();
+        }
+
+        fn text(self: *Self, alloc: Allocator) Allocator.Error![]u8 {
+            var content = try std.ArrayList(u8).initCapacity(alloc, self.content.items.len);
+            for (self.content.items, 0..) |it, i| {
+                try content.appendSlice(alloc, "- ");
+                try content.appendSlice(alloc, try it.renderText(alloc));
+                if (i != self.content.items.len - 1) try content.append(alloc, '\n');
+            }
+            return try content.toOwnedSlice(alloc);
         }
     };
 }

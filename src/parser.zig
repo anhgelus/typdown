@@ -59,6 +59,7 @@ pub fn parse(parent: Allocator, content: []const u8) !Document {
 
 fn gen(parent: Allocator, l: *Lexer) Allocator.Error!Document {
     var root = try Element.Root.init(parent);
+    root.sub = false;
     errdefer root.deinit();
     const alloc = root.allocator();
     var doc_errors = std.ArrayList(Document.Error).empty;

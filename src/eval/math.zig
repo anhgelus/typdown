@@ -55,7 +55,7 @@ fn Math(comptime template: []const u8, comptime modFn: *const fn (Allocator, []c
         }
 
         pub fn element(self: *Self) Element {
-            return Element.Wrapper(Self, html).init(self);
+            return Element.Wrapper(Self, html, text).init(self);
         }
 
         fn fromNode(context: *anyopaque) Element {
@@ -74,6 +74,19 @@ fn Math(comptime template: []const u8, comptime modFn: *const fn (Allocator, []c
             };
             const svg = try generateSVG(arena.allocator(), file);
             return (try HTML.Literal.initNoEscape(alloc, svg)).element();
+        }
+
+        fn text(self: *Self, alloc: Allocator) Allocator.Error![]u8 {
+            const ct = if (self.content) |it| out: {
+                var v = std.mem.cutSuffix(u8, it, "\n") orelse it;
+                v = std.mem.cutSuffix(u8, v, "\r") orelse v;
+                break :out v;
+            } else "";
+            var content = try std.ArrayList(u8).initCapacity(alloc, ct.len + 2);
+            try content.append(alloc, '$');
+            try content.appendSlice(alloc, ct);
+            try content.append(alloc, '$');
+            return try content.toOwnedSlice(alloc);
         }
     };
 }

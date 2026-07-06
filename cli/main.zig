@@ -14,11 +14,21 @@ pub fn main(init: std.process.Init) !void {
         try help(init.io);
         return;
     };
-    if (eql(u8, cmd, "html")) {
-        try html(init.io, alloc, &args);
-    } else {
-        try help(init.io);
-        std.process.exit(1);
+    while (args.next()) |path| {
+        var res: []const u8 = undefined;
+        var doc = try parseDoc(init.io, alloc, Io.Dir.cwd(), path);
+        if (eql(u8, cmd, "html")) {
+            res = try doc.root.renderHTML(alloc);
+        } else if (eql(u8, cmd, "text")) {
+            res = try doc.root.renderText(alloc);
+        } else {
+            try help(init.io);
+            std.process.exit(1);
+        }
+        const stdout = Io.File.stdout();
+
+        _ = try stdout.writeStreamingAll(init.io, res);
+        _ = try stdout.writeStreamingAll(init.io, "\n");
     }
 }
 
@@ -32,39 +42,27 @@ fn help(io: Io) !void {
     try stdout.flush();
 }
 
-fn html(io: Io, parent: Allocator, args: *std.process.Args.Iterator) !void {
-    const cwd = Io.Dir.cwd();
-    while (args.next()) |path| {
-        var arena = std.heap.ArenaAllocator.init(parent);
-        defer arena.deinit();
-        const alloc = arena.allocator();
+fn parseDoc(io: Io, alloc: Allocator, cwd: Io.Dir, path: []const u8) !typdown.Document {
+    const content = try cwd.readFileAlloc(io, path, alloc, .unlimited);
 
-        const content = try cwd.readFileAlloc(io, path, alloc, .unlimited);
-
-        var doc = try typdown.parse(alloc, content);
-        if (doc.errors) |errors| {
-            var buffer: [2048]u8 = undefined;
-            var stdout_writer = Io.File.stdout().writer(io, &buffer);
-            const stdout = &stdout_writer.interface;
-            try stdout.print("Cannot compile {s}:\n", .{path});
-            for (errors) |err| {
-                const extracted = std.mem.trimEnd(u8, err.extract(content), "\n");
-                try stdout.print("\n{s} (line {})\n", .{ extracted, err.location.line });
+    const doc = try typdown.parse(alloc, content);
+    if (doc.errors) |errors| {
+        var buffer: [2048]u8 = undefined;
+        var stdout_writer = Io.File.stdout().writer(io, &buffer);
+        const stdout = &stdout_writer.interface;
+        try stdout.print("Cannot compile {s}:\n", .{path});
+        for (errors) |err| {
+            const extracted = std.mem.trimEnd(u8, err.extract(content), "\n");
+            try stdout.print("\n{s} (line {})\n", .{ extracted, err.location.line });
+            try stdout.printAsciiChar('^', .{});
+            if (extracted.len > 1) {
+                for (1..extracted.len - 1) |_| try stdout.printAsciiChar('~', .{});
                 try stdout.printAsciiChar('^', .{});
-                if (extracted.len > 1) {
-                    for (1..extracted.len - 1) |_| try stdout.printAsciiChar('~', .{});
-                    try stdout.printAsciiChar('^', .{});
-                }
-                try stdout.print("\n{}\n\n", .{err.err});
-                try stdout.flush();
             }
-            std.process.exit(2);
+            try stdout.print("\n{}\n\n", .{err.err});
+            try stdout.flush();
         }
-        const res = try doc.root.renderHTML(alloc);
-
-        const stdout = Io.File.stdout();
-
-        _ = try stdout.writeStreamingAll(io, res);
-        _ = try stdout.writeStreamingAll(io, "\n");
+        std.process.exit(2);
     }
+    return doc;
 }

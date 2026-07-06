@@ -19,9 +19,9 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
             const el = try Element.Literal.init(alloc, v.content);
             content.append(el);
         },
-        .bold => content.append(try parseModifier(alloc, l, .bold, "b")),
-        .italic => content.append(try parseModifier(alloc, l, .italic, "em")),
-        .code => content.append(try parseModifier(alloc, l, .code, "code")),
+        .bold => content.append(try parseModifier(alloc, l, .bold, Element.paragraph.Bold)),
+        .italic => content.append(try parseModifier(alloc, l, .italic, Element.paragraph.Italic)),
+        .code => content.append(try parseModifier(alloc, l, .code, Element.paragraph.Code)),
         .math => content.append(try parseMath(alloc, l)),
         .escaped => {
             _ = l.peek() orelse return Error.IllegalPlacement;
@@ -32,8 +32,8 @@ pub fn parse(alloc: Allocator, l: *Lexer) Error!Element {
     return content.element();
 }
 
-fn parseModifier(alloc: Allocator, l: *Lexer, knd: Token.Kind, comptime tag: []const u8) Error!Element {
-    var el = try Element.Simple(tag).init(alloc);
+fn parseModifier(alloc: Allocator, l: *Lexer, knd: Token.Kind, comptime V: type) Error!Element {
+    var el = try V.init(alloc);
     var root = try Element.Root.init(alloc);
     el.content = root.element();
     while (l.peek()) |next| {

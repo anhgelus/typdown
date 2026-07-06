@@ -115,7 +115,22 @@ export fn Document_renderHTML(context: *anyopaque, code: *u8) ?[*:0]const u8 {
     };
     defer default_alloc.free(res);
     code.* = 0;
-    return default_alloc.dupeZ(u8, res) catch |err| {
+    return default_alloc.dupeSentinel(u8, res, 0) catch |err| {
+        code.* = getErrorCode(err);
+        return null;
+    };
+}
+
+/// Render a plain text from the document.
+export fn Document_renderText(context: *anyopaque, code: *u8) ?[*:0]const u8 {
+    const root: *Element.Root = @ptrCast(@alignCast(context));
+    const res = root.renderText(default_alloc) catch |err| {
+        code.* = getErrorCode(err);
+        return null;
+    };
+    defer default_alloc.free(res);
+    code.* = 0;
+    return default_alloc.dupeSentinel(u8, res, 0) catch |err| {
         code.* = getErrorCode(err);
         return null;
     };

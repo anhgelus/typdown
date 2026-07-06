@@ -22,7 +22,7 @@ pub const Code = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return Element.Wrapper(Self, html).init(self);
+        return Element.Wrapper(Self, html, text).init(self);
     }
 
     fn fromNode(context: *anyopaque) Element {
@@ -39,6 +39,16 @@ pub const Code = struct {
         code.content = root.element();
         el.content = code.element();
         return el.element();
+    }
+
+    fn text(self: *Self, alloc: Allocator) Allocator.Error![]u8 {
+        var content = try std.ArrayList(u8).initCapacity(alloc, self.content.items.len);
+        for (self.content.items) |it| {
+            const c = try it.renderText(alloc);
+            defer alloc.free(c);
+            try content.appendSlice(alloc, c);
+        }
+        return try content.toOwnedSlice(alloc);
     }
 };
 
@@ -60,7 +70,7 @@ pub const Figure = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return Element.Wrapper(Self, html).init(self);
+        return Element.Wrapper(Self, html, text).init(self);
     }
 
     fn fromNode(context: *anyopaque) Element {
@@ -79,6 +89,19 @@ pub const Figure = struct {
         figcap.content = try caption.html(alloc);
         try root.append(figcap.element());
         return el.element();
+    }
+
+    fn text(self: *Self, alloc: Allocator) Allocator.Error![]u8 {
+        var base = try self.content.renderText(alloc);
+        const n = base.len;
+        if (self.caption) |it| {
+            const caption = try it.renderText(alloc);
+            defer alloc.free(caption);
+            base = try alloc.realloc(base, n + 3 + caption.len);
+            base[n] = '\n';
+            for (caption, n + 1..) |v, i| base[i] = v;
+        }
+        return base;
     }
 };
 
@@ -101,7 +124,7 @@ pub const Callout = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return Element.Wrapper(Self, html).init(self);
+        return Element.Wrapper(Self, html, text).init(self);
     }
 
     fn fromNode(context: *anyopaque) Element {
@@ -122,6 +145,16 @@ pub const Callout = struct {
         el.content = root.element();
         return el.element();
     }
+
+    fn text(self: *Self, alloc: Allocator) Allocator.Error![]u8 {
+        var content = std.ArrayList(u8).empty;
+        if (self.title) |it| try content.appendSlice(alloc, it);
+        try content.append(alloc, '\n');
+        const c = try self.content.renderText(alloc);
+        defer alloc.free(c);
+        try content.appendSlice(alloc, c);
+        return try content.toOwnedSlice(alloc);
+    }
 };
 
 pub const Quote = struct {
@@ -141,7 +174,7 @@ pub const Quote = struct {
     }
 
     pub fn element(self: *Self) Element {
-        return Element.Wrapper(Self, html).init(self);
+        return Element.Wrapper(Self, html, text).init(self);
     }
 
     fn fromNode(context: *anyopaque) Element {
@@ -153,5 +186,9 @@ pub const Quote = struct {
         const quote = try HTML.Content.init(alloc, "blockquote");
         quote.content = try self.content.html(alloc);
         return quote.element();
+    }
+
+    fn text(self: *Self, alloc: Allocator) Allocator.Error![]u8 {
+        return try self.content.renderText(alloc);
     }
 };

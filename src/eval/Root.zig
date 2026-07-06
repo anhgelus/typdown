@@ -13,6 +13,7 @@ node: Node = .{
     .ptr = undefined,
     .vtable = .{ .element = fromNode },
 },
+sub: bool = true,
 
 pub fn init(parent: Allocator) !*Self {
     var s = Self{ .arena = .init(parent) };
@@ -46,11 +47,15 @@ pub fn append(self: *Self, raw: anytype) void {
 }
 
 pub fn element(self: *Self) Element {
-    return Element.Wrapper(Self, html).init(self);
+    return Element.Wrapper(Self, html, text).init(self);
 }
 
 pub fn renderHTML(self: *Self, alloc: Allocator) HTML.Error![]const u8 {
     return try self.element().renderHTML(alloc);
+}
+
+pub fn renderText(self: *Self, alloc: Allocator) Allocator.Error![]const u8 {
+    return try self.element().renderText(alloc);
 }
 
 fn fromNode(context: *anyopaque) Element {
@@ -63,4 +68,16 @@ fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
     var v = self.content.first;
     while (v) |it| : (v = it.next) try el.append(Node.from(it).element());
     return el.element();
+}
+
+fn text(self: *Self, alloc: Allocator) Allocator.Error![]u8 {
+    var content = std.ArrayList(u8).empty;
+    var v = self.content.first;
+    while (v) |it| : (v = it.next) {
+        const c = try Node.from(it).element().renderText(alloc);
+        defer alloc.free(c);
+        try content.appendSlice(alloc, c);
+        if (it.next != null and !self.sub) try content.appendSlice(alloc, "\n\n");
+    }
+    return try content.toOwnedSlice(alloc);
 }

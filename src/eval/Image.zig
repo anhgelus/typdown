@@ -21,7 +21,7 @@ pub fn init(alloc: Allocator, src: []const u8) !*Self {
 }
 
 pub fn element(self: *Self) Element {
-    return Element.Wrapper(Self, html).init(self);
+    return Element.Wrapper(Self, html, text).init(self);
 }
 
 fn fromNode(context: *anyopaque) Element {
@@ -34,6 +34,20 @@ fn html(self: *Self, alloc: Allocator) HTML.Error!HTML {
     try img.setAttribute("src", self.src);
     if (self.alt) |it| try img.setAttribute("alt", it);
     return img.element();
+}
+
+fn text(self: *Self, alloc: Allocator) Allocator.Error![]u8 {
+    const n = self.src.len;
+    var base = try alloc.alloc(u8, n);
+    for (self.src, 0..) |v, i| base[i] = v;
+    if (self.alt) |it| {
+        base = try alloc.realloc(base, n + 3 + it.len);
+        base[n] = ' ';
+        base[n + 1] = '(';
+        for (it, n + 2..) |v, i| base[i] = v;
+        base[base.len - 1] = ')';
+    }
+    return base;
 }
 
 test "html" {
@@ -52,4 +66,22 @@ test "html" {
     const h2 = try img.element().renderHTML(alloc);
     defer alloc.free(h2);
     try expect(eql(u8, h2, "<img src=\"foo\" alt=\"bar\">"));
+}
+
+test "text" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    var alloc = arena.allocator();
+    const expect = std.testing.expect;
+    const eql = std.mem.eql;
+
+    var img = try init(alloc, "foo");
+    const h = try img.element().renderText(alloc);
+    defer alloc.free(h);
+    try expect(eql(u8, h, "foo"));
+
+    img.alt = "bar";
+    const h2 = try img.element().renderText(alloc);
+    defer alloc.free(h2);
+    try expect(eql(u8, h2, "foo (bar)"));
 }

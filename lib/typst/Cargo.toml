@@ -23,5 +23,5 @@ inherits = "release"
 opt-level = "s"
 
 [features]
-default = ["embedded-fonts", "typst-kit/scan-fonts"]
+default = ["typst-kit/scan-fonts"]
 embedded-fonts = ["typst-kit/embedded-fonts"]

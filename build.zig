@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
         "cargo", "build",
     });
     build_typst.setCwd(typst_dep.path(""));
-    if (!no_embed_fonts or optimize == .ReleaseSmall) build_typst.addArgs(&.{ "--features", "embed-fonts" });
+    if (!no_embed_fonts or optimize == .ReleaseSmall) build_typst.addArgs(&.{ "--features", "embedded-fonts" });
     var folder: []const u8 = "debug";
     switch (optimize) {
         .ReleaseSmall => {

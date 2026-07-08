@@ -30,6 +30,7 @@ impl MinimalWorld {
 
         fonts.extend(fonts::system());
 
+        #[cfg(feature = "embedded-fonts")]
         fonts.extend(fonts::embedded());
 
         Self {

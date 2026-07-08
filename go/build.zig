@@ -10,17 +10,11 @@ pub fn build(b: *std.Build) !void {
     const typdown = b.dependency("typdown", .{
         .optimize = optimize,
         .target = target,
-    }).module("typdown");
-    const lib = b.addLibrary(.{
-        .name = "typdown",
-        .root_module = typdown,
     });
-    //lib.bundle_compiler_rt = true;
-    //lib.pie = true;
-    const install_lib = b.addInstallArtifact(lib, .{});
+    const lib = @import("typdown").buildLib(typdown.builder, target, optimize, true, false);
 
     const go_build = buildGo(b, target, optimize, "build");
-    go_build.step.dependOn(&install_lib.step);
+    go_build.step.dependOn(&lib.step);
     install_step.dependOn(&go_build.step);
 
     const test_step = b.step("test", "Run tests");

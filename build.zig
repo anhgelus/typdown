@@ -1,14 +1,14 @@
 const std = @import("std");
 
-pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
-
-    const short = b.option(bool, "short", "skip long tests") orelse false;
-    const no_embed_fonts = b.option(bool, "no-embed-fonts", "dont embed fonts for typst (enabled for ReleaseSmall)") orelse false;
+pub fn buildLib(
+    b: *std.Build,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    no_embedded_fonts: bool,
+    short: bool,
+) *std.Build.Step.Compile {
     const options = b.addOptions();
     options.addOption(bool, "short", short);
-
     const typst_dep = b.dependency("typst", .{});
 
     // build typst module
@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
         "cargo", "build",
     });
     build_typst.setCwd(typst_dep.path(""));
-    if (!no_embed_fonts or optimize == .ReleaseSmall) build_typst.addArgs(&.{ "--features", "embedded-fonts" });
+    if (!no_embedded_fonts or optimize == .ReleaseSmall) build_typst.addArgs(&.{ "--features", "embedded-fonts" });
     var folder: []const u8 = "debug";
     switch (optimize) {
         .ReleaseSmall => {
@@ -56,6 +56,17 @@ pub fn build(b: *std.Build) void {
         .use_llvm = true, // zig internal backend crashes during linking (for 0.16.0)
     });
     lib.step.dependOn(&build_typst.step);
+    return lib;
+}
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    const short = b.option(bool, "short", "skip long tests") orelse false;
+    const no_embed_fonts = b.option(bool, "no-embed-fonts", "dont embed fonts for typst (enabled for ReleaseSmall)") orelse false;
+
+    const lib = buildLib(b, target, optimize, no_embed_fonts, short);
 
     b.installArtifact(lib);
 
@@ -77,14 +88,14 @@ pub fn build(b: *std.Build) void {
         }),
         .use_llvm = true, // zig internal backend crashes during linking (for 0.16.0)
     });
-    exe.root_module.addImport("typdown", mod);
+    exe.root_module.addImport("typdown", lib.root_module);
     exe.step.dependOn(&lib.step);
 
     b.installArtifact(exe);
 
     const test_step = b.step("test", "Run tests");
     const exe_tests = b.addTest(.{
-        .root_module = mod,
+        .root_module = lib.root_module,
         .use_llvm = true, // zig internal backend crashes during linking (for 0.16.0)
     });
 

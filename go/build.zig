@@ -18,18 +18,17 @@ pub fn build(b: *std.Build) !void {
     install_step.dependOn(&go_build.step);
 
     const test_step = b.step("test", "Run tests");
-    test_step.dependOn(b.getInstallStep());
     const race = b.option(bool, "race", "Run tests with -race") orelse false;
     const go_test = buildGo(b, target, optimize, "test");
     if (race) go_test.addArg("-race");
     go_test.addArg("./...");
-
-    test_step.dependOn(install_step);
+    go_test.step.dependOn(&lib.step);
+    test_step.dependOn(&go_test.step);
 }
 
-fn buildGo(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, command: []const u8) *std.Build.Step.Run {
+fn buildGo(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, comptime command: []const u8) *std.Build.Step.Run {
     var flags = std.ArrayList(u8).initCapacity(b.allocator, 2) catch unreachable;
-    flags.appendSlice(b.allocator, "-linkmode external -extldflags") catch unreachable;
+    flags.appendSlice(b.allocator, "-linkmode external") catch unreachable;
     if (optimize != .Debug) flags.appendSlice(b.allocator, " -s") catch unreachable;
     const targetStr = std.fmt.allocPrint(b.allocator, "{s}-{s}-{s}", .{
         @tagName(target.result.cpu.arch),

@@ -35,7 +35,7 @@ pub fn build(b: *std.Build) !void {
 
 fn buildGo(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, command: []const u8) *std.Build.Step.Run {
     var flags = std.ArrayList(u8).initCapacity(b.allocator, 2) catch unreachable;
-    flags.appendSlice(b.allocator, "-linkmode external -extldflags -static") catch unreachable;
+    flags.appendSlice(b.allocator, "-linkmode external -extldflags") catch unreachable;
     if (optimize != .Debug) flags.appendSlice(b.allocator, " -s") catch unreachable;
     const targetStr = std.fmt.allocPrint(b.allocator, "{s}-{s}-{s}", .{
         @tagName(target.result.cpu.arch),
@@ -52,7 +52,7 @@ fn buildGo(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builti
     run.setEnvironmentVariable("CC", cc);
     run.setEnvironmentVariable("C++", cpp);
     run.setEnvironmentVariable("CGO_ENABLED", "1");
-    run.setEnvironmentVariable("CGO_LDFLAGS", "-L${SRCDIR}/zig-out/lib -ltypdown");
+    run.setEnvironmentVariable("CGO_LDFLAGS", "-L./zig-out/lib -ltypdown ./zig-out/lib/libtypdown.a");
     run.setEnvironmentVariable("GOOS", @tagName(target.result.os.tag));
     return run;
 }

@@ -46,12 +46,13 @@ pub fn buildLib(
     });
     mod.addOptions("config", options);
     // add typst module
-    mod.addObjectFile(typst_dep.path("target").path(b, folder).path(b, "libtypdown_typst.so"));
     mod.addImport("typst", typst.createModule());
+    mod.addLibraryPath(typst_dep.path("target").path(b, folder));
+    mod.linkSystemLibrary("typdown_typst", .{ .preferred_link_mode = .static });
 
     const lib = b.addLibrary(.{
         .name = "typdown",
-        .linkage = .dynamic,
+        .linkage = .static,
         .root_module = mod,
         .use_llvm = true, // zig internal backend crashes during linking (for 0.16.0)
     });
@@ -66,7 +67,13 @@ pub fn build(b: *std.Build) void {
     const short = b.option(bool, "short", "skip long tests") orelse false;
     const no_embed_fonts = b.option(bool, "no-embed-fonts", "dont embed fonts for typst (enabled for ReleaseSmall)") orelse false;
 
-    const lib = buildLib(b, target, optimize, no_embed_fonts, short);
+    const lib = buildLib(
+        b,
+        target,
+        optimize,
+        no_embed_fonts,
+        short,
+    );
 
     b.installArtifact(lib);
 

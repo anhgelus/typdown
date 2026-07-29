@@ -11,10 +11,21 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
         .target = target,
     });
-    const lib = @import("typdown").buildLib(typdown.builder, target, optimize, true, false);
+    const lib = @import("typdown").buildLib(
+        typdown.builder,
+        target,
+        optimize,
+        true,
+        false,
+    );
+    lib.bundle_compiler_rt = true;
+    lib.pie = true;
+
+    const lib_install = b.addInstallArtifact(lib, .{});
+    lib_install.step.dependOn(&lib.step);
 
     const go_build = buildGo(b, target, optimize, "build");
-    go_build.step.dependOn(&lib.step);
+    go_build.step.dependOn(&lib_install.step);
     install_step.dependOn(&go_build.step);
 
     const test_step = b.step("test", "Run tests");
@@ -22,7 +33,7 @@ pub fn build(b: *std.Build) !void {
     const go_test = buildGo(b, target, optimize, "test");
     if (race) go_test.addArg("-race");
     go_test.addArg("./...");
-    go_test.step.dependOn(&lib.step);
+    go_test.step.dependOn(&lib_install.step);
     test_step.dependOn(&go_test.step);
 }
 

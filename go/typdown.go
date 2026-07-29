@@ -1,9 +1,13 @@
 package typdown
 
-/*
-#include <stdlib.h>
-#include "typdown.h"
-*/
+// #include <stdlib.h>
+// #include "typdown.h"
+// #cgo noescape parseTypdown
+// #cgo nocallback parseTypdown
+// #cgo noescape Document_free
+// #cgo nocallback Document_free
+// #cgo noescape Document_renderHTML
+// #cgo nocallback Document_renderHTML
 import "C"
 import (
 	"errors"
